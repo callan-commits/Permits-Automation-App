@@ -1,0 +1,36 @@
+{
+  "name": "permits-automation-app",
+  "version": "0.1.0",
+  "description": "Automates ground penetration permit preparation on rail infrastructure jobs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "sample": "python3 scripts/make_sample_dxf.py public/samples/sample-utility-survey.dxf"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/callan-commits/permits-automation-app.git"
+  },
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/callan-commits/permits-automation-app/issues"
+  },
+  "homepage": "https://github.com/callan-commits/permits-automation-app#readme",
+  "dependencies": {
+    "@mlightcad/libredwg-web": "^0.9.2",
+    "ol": "^10.11.0",
+    "proj4": "^2.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/proj4": "^2.5.6",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  },
+  "private": true,
+  "type": "module"
+}

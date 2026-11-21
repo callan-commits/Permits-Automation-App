@@ -1,2 +1,77 @@
 # Permits-Automation-App
-An app intended to automate the civil engineering ground penetration permit process on rail jobs. 
+
+An app intended to automate the civil engineering ground penetration permit process on rail jobs.
+
+## Current status (prototype v0.1)
+
+Working:
+
+- **Open utility survey drawings**: `.dwg` (via [LibreDWG](https://www.gnu.org/software/libredwg/) compiled to WebAssembly) and ASCII `.dxf`. Open from the toolbar or drag onto the map.
+- **Display over aerial imagery**: the map runs in the survey's own grid (MGA2020 Zone 54/55/56, or MGA94 for older surveys). Free imagery (Esri World Imagery) or OpenStreetMap is reprojected to fit. Drawing coordinates are never altered.
+- **Layers panel**: colours follow the CAD layer colours, with toggles, a filter and a feature count. Layers that are off or frozen in the drawing start hidden.
+- **CAD objects drawn**: lines, polylines (including arcs and bulges, and 3D polylines with levels), arcs, circles, ellipses, splines, points, text/MTEXT, block inserts with attributes (nested), hatches, solids and dimensions.
+- **Draw excavation boxes**:
+  - **▭ Box** draws a grid-aligned box (click two corners).
+  - **⟋ Rotated box** draws a box at any angle: two clicks along one edge, then a third click to set the width. Useful along a rail corridor.
+  - Click a box to select it, drag to move it, and press Delete to remove it. Rename it in the sidebar.
+  - The sidebar shows size, area, bearing, centre and corner coordinates in MGA (with **Copy corners**).
+  - It also has a preliminary list of visible layers within 10 m of each box. The permit rules will replace this.
+- **Inspect**: click any utility to see its layer, object type, handle, block, length and levels.
+- **Privacy**: everything runs in the browser, so survey files are never uploaded anywhere.
+
+## Running it
+
+Requires [Node.js](https://nodejs.org) 20 or newer.
+
+```bash
+npm install
+npm run dev        # then open http://localhost:5173
+```
+
+Click **Load sample** for a synthetic test survey near Caulfield. It is invented geometry and does not represent real assets.
+
+Other commands:
+
+```bash
+npm test           # unit tests (CAD conversion, geometry, coordinate transforms)
+npm run build      # static production build in dist/ (can be hosted on any static host)
+npm run sample     # regenerate the sample DXF (needs: pip install ezdxf)
+```
+
+To run the tests against your own DWG files, put them in `tests/fixtures/`. That folder is git-ignored, so client data stays out of the repo.
+
+## How it fits together
+
+```
+src/
+  cad/
+    worker.ts      Web Worker: LibreDWG (WASM) reads DWG/DXF off the main thread
+    convert.ts     CAD entities -> simple lines/polygons/points/text in drawing coordinates
+    aci.ts         AutoCAD colour index -> hex
+    loader.ts      Main-thread wrapper around the worker
+  geo/crs.ts       MGA2020 / MGA94 definitions, GDA94->GDA2020 transform, sanity checks
+  map/
+    basemaps.ts    Imagery sources (swap in Nearmap/Vicmap here later)
+    utilityLayer.ts  Styling, layer visibility, CAD-scaled text labels
+    boxTool.ts     Draw / select / move / delete boxes
+  analysis/geometry.ts  Box dimensions, polygon-to-line distances, nearby utilities
+  ui/panels.ts     Sidebar panels
+  main.ts          App wiring
+```
+
+## Notes and limitations
+
+- **Accuracy**: boxes and distances are calculated in MGA grid coordinates, straight from the survey, so they are not affected by imagery alignment. Free imagery is only accurate to a few metres. GDA2020 is treated as WGS84, a difference of under 0.5 m. Use the imagery for context, not for measuring.
+- **DWG support**: LibreDWG reads most DWG versions, but some drawings may fail or lose objects. If a file won't open, save it as DXF from Civil 3D/AutoCAD. Not yet drawn: 3D solids, MLINE, tolerances, raster images and xrefs.
+- **Local site grids**: if the coordinates don't look like MGA, the app warns. A site-grid transformation would need adding.
+- **Licensing**: LibreDWG is GPL-3.0. That is fine for internal use, but distributing the app to others would require it to be released under the GPL (or the DWG reader swapped for a commercial one).
+- **Imagery**: Esri World Imagery is used for development under Esri's terms. For production, use a licensed source (e.g. Nearmap or Vicmap Basemaps).
+
+## Roadmap
+
+1. ✅ Display DWG utility data on imagery, and draw excavation boxes
+2. Load several drawings at once (e.g. a separate BYDA response per owner)
+3. Map layers to utility owners and types (configurable)
+4. Permit rules: offset distances per owner, then the list of permits required
+5. PDF markup of the box and nearby utilities in the standard format
+6. Pre-filled permit documents
