@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='4' width='12' height='8' fill='none' stroke='%23ffcc00' stroke-width='2'/%3E%3C/svg%3E" />
+    <title>Permit Automation – Utility Viewer</title>
+  </head>
+  <body>
+    <header class="toolbar">
+      <div class="brand">Permit Automation <span class="tag">prototype</span></div>
+      <label class="btn primary" title="Open a utility survey drawing (.dwg or .dxf)">
+        Open DWG / DXF
+        <input id="file-input" type="file" accept=".dwg,.dxf" hidden />
+      </label>
+      <button id="load-sample" class="btn" title="Load a synthetic test survey">Load sample</button>
+      <span class="sep"></span>
+      <button id="draw-rect" class="btn tool" title="Click and drag (or click two corners) to draw a grid-aligned box">▭ Box</button>
+      <button id="draw-rotated" class="btn tool" title="Click two points along one edge, then a third to set the width">⟋ Rotated box</button>
+      <span class="sep"></span>
+      <label class="field">Grid
+        <select id="crs-select"></select>
+      </label>
+      <label class="field">Background
+        <select id="basemap-select"></select>
+      </label>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section id="drawing-panel" class="panel">
+          <h2>Drawing</h2>
+          <div id="drawing-info" class="muted">No drawing loaded. Open a DWG/DXF or drop one on the map.</div>
+        </section>
+
+        <section class="panel grow">
+          <h2>Layers <span id="layer-count" class="count"></span></h2>
+          <div class="layer-controls">
+            <input id="layer-filter" type="search" placeholder="Filter layers…" />
+            <button id="layers-all" class="btn small">All</button>
+            <button id="layers-none" class="btn small">None</button>
+          </div>
+          <label class="check"><input id="labels-toggle" type="checkbox" checked /> Show text labels</label>
+          <ul id="layer-list" class="layer-list"></ul>
+        </section>
+
+        <section class="panel">
+          <h2>Boxes <span id="box-count" class="count"></span></h2>
+          <div id="box-list" class="muted">Use <b>▭ Box</b> or <b>⟋ Rotated box</b> to mark the excavation area.</div>
+        </section>
+
+        <section class="panel">
+          <h2>Selected feature</h2>
+          <div id="feature-info" class="muted">Click a utility on the map to inspect it.</div>
+        </section>
+      </aside>
+
+      <div class="map-wrap">
+        <div id="map" class="map"></div>
+        <div id="draw-hint" class="draw-hint" hidden></div>
+        <div id="drop-overlay" class="drop-overlay" hidden>Drop DWG / DXF to open</div>
+        <div id="busy" class="busy" hidden><div class="spinner"></div><span id="busy-text">Reading drawing…</span></div>
+        <div id="toast" class="toast" hidden></div>
+      </div>
+    </main>
+
+    <footer class="statusbar">
+      <span id="status-coords">E – N –</span>
+      <span id="status-crs"></span>
+      <span id="status-scale"></span>
+      <span class="spacer"></span>
+      <span class="muted">Files are processed in your browser and are not uploaded.</span>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
