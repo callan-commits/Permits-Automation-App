@@ -15,7 +15,10 @@ export interface ParseRequest {
   buffer: ArrayBuffer;
 }
 
-export type ParseResponse = { id: number; ok: true; drawing: CadDrawing } | { id: number; ok: false; error: string };
+export type ParseResponse =
+  | { id: number; ok: true; drawing: CadDrawing }
+  | { id: number; ok: false; error: string }
+  | { id: number; stage: string };
 
 let libPromise: Promise<ReturnType<typeof LibreDwg.createByWasmInstance>> | null = null;
 
@@ -33,23 +36,30 @@ export function detectFileType(fileName: string, bytes: Uint8Array): 'dwg' | 'dx
 
 self.onmessage = async (ev: MessageEvent<ParseRequest>) => {
   const { id, fileName, buffer } = ev.data;
+  const post = (msg: ParseResponse) => (self as unknown as Worker).postMessage(msg);
+  const stage = (text: string) => post({ id, stage: text });
   try {
+    stage('Starting DWG reader…');
     const lib = await getLib();
     const kind = detectFileType(fileName, new Uint8Array(buffer));
     if (kind === 'binary-dxf') throw new Error('Binary DXF is not supported. Save it as an ASCII DXF or a DWG.');
+    const mb = (buffer.byteLength / 1e6).toFixed(1);
+    stage(`Reading ${fileName} (${mb} MB)…`);
     const input = kind === 'dwg' ? buffer : new TextDecoder('utf-8').decode(buffer);
     const ptr = lib.dwg_read_data(input, kind === 'dwg' ? Dwg_File_Type.DWG : Dwg_File_Type.DXF);
     if (ptr === undefined || ptr === 0) throw new Error(`Could not read ${fileName}. The file may be corrupt or an unsupported version.`);
     let drawing: CadDrawing;
     try {
-      drawing = convertDatabase(lib.convert(ptr), fileName);
+      stage('Extracting drawing objects…');
+      const db = lib.convert(ptr);
+      stage(`Converting ${db.entities.length.toLocaleString()} objects…`);
+      drawing = convertDatabase(db, fileName);
     } finally {
       lib.dwg_free(ptr);
     }
-    const msg: ParseResponse = { id, ok: true, drawing };
-    (self as unknown as Worker).postMessage(msg);
+    stage(`Sending ${drawing.features.length.toLocaleString()} objects to the map…`);
+    post({ id, ok: true, drawing });
   } catch (err) {
-    const msg: ParseResponse = { id, ok: false, error: (err as Error).message ?? String(err) };
-    (self as unknown as Worker).postMessage(msg);
+    post({ id, ok: false, error: (err as Error).message ?? String(err) });
   }
 };

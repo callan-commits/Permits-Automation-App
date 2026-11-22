@@ -63,6 +63,17 @@ src/
   main.ts          App wiring
 ```
 
+## Large drawings
+
+Surveys with 100,000+ objects stay responsive:
+
+- **Merged drawing.** Geometry is merged into a few thousand map objects (by layer, colour and area) and drawn as one image that slides while you pan.
+- **Level of detail.** Small symbols, such as survey points, pits and hatches, appear once they're a couple of pixels across. Ordinary lines are always drawn.
+- **Labels on demand.** Text labels are created only for the area in view, once they're big enough to read (up to 4,000 at a time, largest first).
+- **Spatial index.** Clicks and offset checks look only at nearby objects.
+
+Benchmark: on a synthetic survey with 104,000 objects (`python3 scripts/make_stress_dxf.py`), panning takes about 1–3 ms per frame, with a 0.05–0.2 s redraw after each move. Most of the load time is the DWG/DXF parsing, which runs in the background with progress shown.
+
 ## Notes and limitations
 
 - **Accuracy**: boxes and distances are calculated in MGA grid coordinates, straight from the survey, so they are not affected by imagery alignment. Free imagery is only accurate to a few metres. GDA2020 is treated as WGS84, a difference of under 0.5 m. Use the imagery for context, not for measuring.

@@ -57,7 +57,7 @@ const map = new Map({
   target: 'map',
   controls: defaultControls({ attributionOptions: { collapsible: true, collapsed: false } }).extend([new ScaleLine({ units: 'metric' })]),
   view: makeView(crsCode),
-  layers: [utilities.geometryLayer, utilities.textLayer],
+  layers: [utilities.geometryLayer, utilities.textLayer, utilities.highlightLayer],
 });
 const boxes = new BoxTool(map, (m) => toast(m, true));
 
@@ -138,7 +138,9 @@ async function openFile(name: string, buffer: ArrayBuffer) {
   busy(`Reading ${name}…`);
   try {
     const started = performance.now();
-    const d = await loadCadFile(name, buffer);
+    const d = await loadCadFile(name, buffer, (stage) => busy(stage));
+    busy('Preparing map…');
+    await new Promise((r) => setTimeout(r, 0)); // let the message paint before the heavy step
     showDrawing(d);
     toast(`Loaded ${name}: ${d.features.length.toLocaleString()} objects in ${((performance.now() - started) / 1000).toFixed(1)} s`);
   } catch (err) {
@@ -235,15 +237,12 @@ boxes.onChange(renderBoxes);
 map.on('singleclick', (e) => {
   if (boxes.currentMode !== 'none') return;
   if (map.forEachFeatureAtPixel(e.pixel, () => true, { layerFilter: (l) => l === boxes.layer, hitTolerance: 4 })) return;
-  let hit: CadFeature | null = null;
-  map.forEachFeatureAtPixel(
-    e.pixel,
-    (f) => {
-      hit = f.get('cad') as CadFeature;
-      return true;
-    },
-    { layerFilter: (l) => l === utilities.geometryLayer || l === utilities.textLayer, hitTolerance: 5 },
-  );
+  // Labels are hit-tested by OpenLayers; geometry through the spatial index.
+  let hit: CadFeature | null =
+    (map.forEachFeatureAtPixel(e.pixel, (f) => f.get('cad') as CadFeature, { layerFilter: (l) => l === utilities.textLayer, hitTolerance: 2 }) as
+      | CadFeature
+      | undefined) ?? null;
+  hit ??= utilities.hitTest(e.coordinate as [number, number], map.getView().getResolution() ?? 1);
   utilities.highlight(hit);
   renderFeatureInfo($('feature-info'), hit);
 });
@@ -257,9 +256,10 @@ map.on('pointermove', (e) => {
 $('map').addEventListener('pointerleave', () => (coordsEl.textContent = 'E – N –'));
 map.on('moveend', () => {
   const res = map.getView().getResolution() ?? 1;
+  utilities.updateLabels(map.getView().calculateExtent(map.getSize()), res);
   // Approximate printed scale at 96 dpi
   $('status-scale').textContent = `≈ 1:${Math.round((res * 96) / 0.0254).toLocaleString()}`;
 });
 
 // Expose for debugging / automated tests.
-(window as unknown as Record<string, unknown>).__app = { map, boxes, utilities, getDrawing: () => drawing, openFile };
+(window as unknown as Record<string, unknown>).__app = { map, boxes, utilities, getDrawing: () => drawing, openFile, renderBoxes };

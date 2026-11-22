@@ -52,7 +52,7 @@ export function pointInPolygon(p: XY, ring: XY[]): boolean {
   return inside;
 }
 
-function pointSegmentDistance(p: XY, a: XY, b: XY): number {
+export function pointSegmentDistance(p: XY, a: XY, b: XY): number {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
   const l2 = dx * dx + dy * dy;
@@ -101,6 +101,44 @@ export function featureDistance(ring: XY[], f: CadFeature): number {
     default:
       return polygonToLineDistance(ring, [f.coord]);
   }
+}
+
+/** Shortest distance (m) from a point to a feature's geometry (0 inside a polygon). */
+export function pointToFeatureDistance(p: XY, f: CadFeature): number {
+  const lineDist = (pts: XY[]) => {
+    let best = Infinity;
+    if (pts.length === 1) return Math.hypot(p[0] - pts[0][0], p[1] - pts[0][1]);
+    for (let i = 0; i < pts.length - 1; i++) best = Math.min(best, pointSegmentDistance(p, pts[i], pts[i + 1]));
+    return best;
+  };
+  switch (f.kind) {
+    case 'line':
+      return lineDist(f.coords);
+    case 'polygon':
+      return pointInPolygon(p, f.rings[0]) ? 0 : Math.min(...f.rings.map(lineDist));
+    default:
+      return Math.hypot(p[0] - f.coord[0], p[1] - f.coord[1]);
+  }
+}
+
+/** Bounding box of a feature's geometry. */
+export function featureBBox(f: CadFeature): [number, number, number, number] {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const add = (pts: XY[]) => {
+    for (const [x, y] of pts) {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  };
+  if (f.kind === 'line') add(f.coords);
+  else if (f.kind === 'polygon') f.rings.forEach(add);
+  else add([f.coord]);
+  return [minX, minY, maxX, maxY];
 }
 
 export interface NearbyLayer {

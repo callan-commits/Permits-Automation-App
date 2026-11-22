@@ -69,7 +69,15 @@ export function renderBoxList(el: HTMLElement, countEl: HTMLElement, tool: BoxTo
     const d = boxDimensions(box.ring);
     const card = document.createElement('div');
     card.className = `box-card${box.id === selected ? ' selected' : ''}`;
-    const nearby = drawing ? nearbyByLayer(box.ring, drawing.features, NEARBY_RADIUS, utilities.hiddenLayers()) : [];
+    const xs = box.ring.map((c) => c[0]);
+    const ys = box.ring.map((c) => c[1]);
+    const candidates = utilities.featuresIn([
+      Math.min(...xs) - NEARBY_RADIUS,
+      Math.min(...ys) - NEARBY_RADIUS,
+      Math.max(...xs) + NEARBY_RADIUS,
+      Math.max(...ys) + NEARBY_RADIUS,
+    ]);
+    const nearby = drawing ? nearbyByLayer(box.ring, candidates, NEARBY_RADIUS, utilities.hiddenLayers()) : [];
     const corners = box.ring.slice(0, 4);
     card.innerHTML = `
       <div class="box-head">
