@@ -60,6 +60,8 @@ self.onmessage = async (ev: MessageEvent<ParseRequest>) => {
     stage(`Sending ${drawing.features.length.toLocaleString()} objects to the map…`);
     post({ id, ok: true, drawing });
   } catch (err) {
+    // A failed read can leave the WebAssembly reader in a bad state: start a fresh one next time.
+    libPromise = null;
     post({ id, ok: false, error: (err as Error).message ?? String(err) });
   }
 };

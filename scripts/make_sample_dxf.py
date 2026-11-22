@@ -48,6 +48,7 @@ LAYERS = {
 def main(out_path: str) -> None:
     doc = ezdxf.new("R2018", setup=True)
     doc.units = ezdxf.units.M
+    doc.appids.add("UTILITY")
     for name, (color, desc) in LAYERS.items():
         doc.layers.add(name, color=color).description = desc
 
@@ -55,6 +56,11 @@ def main(out_path: str) -> None:
     pit = doc.blocks.new("PIT")
     pit.add_lwpolyline([(-0.6, -0.3), (0.6, -0.3), (0.6, 0.3), (-0.6, 0.3)], close=True)
     pit.add_line((-0.6, -0.3), (0.6, 0.3))
+    # Pit data: OWNER and PIT_ID visible, RL and cover type stored but hidden (as is common)
+    pit.add_attdef("OWNER", (0.8, 0.2), dxfattribs={"height": 0.25})
+    pit.add_attdef("PIT_ID", (0.8, -0.15), dxfattribs={"height": 0.25})
+    pit.add_attdef("RL_LID", (0.8, -0.5), dxfattribs={"height": 0.25, "flags": 1})
+    pit.add_attdef("COVER", (0.8, -0.85), dxfattribs={"height": 0.25, "flags": 1})
     mh = doc.blocks.new("MANHOLE")
     mh.add_circle((0, 0), 0.6)
     mh.add_circle((0, 0), 0.3)
@@ -75,9 +81,11 @@ def main(out_path: str) -> None:
     )
 
     # Telstra outside the boundary on the left, with pits
-    msp.add_lwpolyline([p(s, 18.0) for s in (0, 120, 240, L)], dxfattribs={"layer": "COMMS-TELSTRA"})
-    for s in (0, 120, 240, L):
-        msp.add_blockref("PIT", p(s, 18.0), dxfattribs={"layer": "COMMS-TELSTRA", "rotation": BEARING_DEG - 90})
+    tel = msp.add_lwpolyline([p(s, 18.0) for s in (0, 120, 240, L)], dxfattribs={"layer": "COMMS-TELSTRA", "elevation": 44.6})
+    tel.set_xdata("UTILITY", [(1000, "OWNER=Telstra"), (1000, "SERVICE=Communications"), (1000, "SIZE=2x P50"), (1000, "QL=B")])
+    for i, s in enumerate((0, 120, 240, L)):
+        ref = msp.add_blockref("PIT", p(s, 18.0, 45.2 - i * 0.1), dxfattribs={"layer": "COMMS-TELSTRA", "rotation": BEARING_DEG - 90})
+        ref.add_auto_attribs({"OWNER": "TELSTRA", "PIT_ID": f"P{101 + i}", "RL_LID": f"{45.2 - i * 0.1:.3f}", "COVER": "P6 class B"})
     msp.add_text(
         "TELSTRA 2x P50",
         height=1.2,
@@ -98,7 +106,8 @@ def main(out_path: str) -> None:
         msp.add_circle(p(s, -23.0), 0.25, dxfattribs={"layer": "ELEC-POLE"})
 
     # Gas main crossing the corridor (under-track crossing)
-    msp.add_lwpolyline([p(95, 35), p(95, 5), p(100, -5), p(100, -35)], dxfattribs={"layer": "GAS-MULTINET"})
+    gas = msp.add_lwpolyline([p(95, 35), p(95, 5), p(100, -5), p(100, -35)], dxfattribs={"layer": "GAS-MULTINET"})
+    gas.set_xdata("UTILITY", [(1000, "OWNER=Multinet Gas"), (1000, "SERVICE=Gas"), (1000, "SIZE=150 PE"), (1000, "PRESSURE=High"), (1000, "QL=A")])
     msp.add_text(
         "GAS 150 PE",
         height=1.2,
@@ -106,7 +115,7 @@ def main(out_path: str) -> None:
     )
 
     # Water main crossing with a curved bend
-    msp.add_line(p(260, 35), p(260, 10), dxfattribs={"layer": "WATER-SEW"})
+    msp.add_line(p(260, 35, 43.9), p(260, 10, 43.7), dxfattribs={"layer": "WATER-SEW"})
     msp.add_arc(
         center=p(270, 10),
         radius=10,

@@ -21,7 +21,7 @@ import VectorSource from 'ol/source/Vector';
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
 import type { FeatureLike } from 'ol/Feature';
 import type { Extent } from 'ol/extent';
-import { featureBBox, pointToFeatureDistance } from '../analysis/geometry';
+import { featureBBox, pointInPolygon, pointToFeatureDistance } from '../analysis/geometry';
 import { type BBox, SpatialGrid } from '../analysis/spatialIndex';
 import type { CadDrawing, CadFeature, CadText, XY } from '../cad/types';
 
@@ -265,9 +265,12 @@ export class UtilityLayers {
     let bestDist = tol;
     for (const { cad, maxRes } of this.index.query([coord[0] - tol, coord[1] - tol, coord[0] + tol, coord[1] + tol])) {
       if (maxRes < resolution || this.hidden.has(cad.layer)) continue;
-      const d = pointToFeatureDistance(coord, cad);
-      // Prefer lines over a hatch they sit on.
-      const adjusted = cad.kind === 'polygon' && d === 0 ? tol * 0.9 : d;
+      let d = pointToFeatureDistance(coord, cad);
+      // Clicking inside a closed outline (a pit symbol, a closed polyline) selects it too.
+      if (d > tol && cad.kind === 'line' && isClosedRing(cad.coords) && pointInPolygon(coord, cad.coords)) d = 0;
+      // Prefer an edge that was clicked on over an area the click merely falls inside.
+      const inside = d === 0 && (cad.kind === 'polygon' || (cad.kind === 'line' && isClosedRing(cad.coords)));
+      const adjusted = inside ? tol * 0.9 : d;
       if (adjusted <= bestDist) {
         bestDist = adjusted;
         best = cad;
@@ -338,6 +341,12 @@ export class UtilityLayers {
     feature.setProperties({ styleKey: cacheKey, style }, true);
     return style;
   }
+}
+
+function isClosedRing(c: XY[]): boolean {
+  if (c.length < 4) return false;
+  const [a, b] = [c[0], c[c.length - 1]];
+  return Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6;
 }
 
 function withAlpha(hex: string, alpha: number): string {

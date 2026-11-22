@@ -7,7 +7,7 @@
  */
 import type { DwgDatabase } from '@mlightcad/libredwg-web';
 import { aciToHex, trueColorToHex } from './aci';
-import type { CadDrawing, CadFeature, CadLayer, CadText, XY } from './types';
+import type { CadDrawing, CadFeature, CadLayer, CadMeta, CadText, XY } from './types';
 
 /** Max distance (m) between a true curve and its straight-segment approximation. */
 export const CHORD_TOLERANCE = 0.01;
@@ -191,7 +191,41 @@ interface Ctx {
   /** Colour used for BYBLOCK entities. */
   blockColor?: string;
   block?: string;
+  /** Data inherited from enclosing block inserts (attributes etc.). */
+  meta?: CadMeta;
   depth: number;
+}
+
+type XValue = { code?: number; value: unknown };
+
+/** Flatten XDATA / XRECORD values to plain strings and numbers (points as "x,y,z"). */
+function flattenValues(entries: XValue[] | undefined, out: (string | number)[] = []): (string | number)[] {
+  for (const en of entries ?? []) {
+    const v = en.value;
+    if (Array.isArray(v)) flattenValues(v as XValue[], out);
+    else if (en.code === 1002) continue; // "{" / "}" grouping markers
+    else if (typeof v === 'number' || typeof v === 'string') out.push(v);
+    else if (v && typeof v === 'object' && 'x' in v) {
+      const pt = v as { x: number; y: number; z?: number };
+      out.push([pt.x, pt.y, pt.z ?? 0].map((n) => +n.toFixed(4)).join(','));
+    }
+  }
+  return out;
+}
+
+const printable = (name: unknown): name is string => typeof name === 'string' && /^[\x20-\x7e]+$/.test(name);
+const KEY_VALUE = /^\s*([A-Za-z][\w .\-/()]{0,40}?)\s*[=]\s*(.*)$/;
+
+function mergeMeta(outer?: CadMeta, inner?: CadMeta): CadMeta | undefined {
+  if (!outer) return inner;
+  if (!inner) return outer;
+  const merged: CadMeta = { ...outer, ...inner };
+  for (const k of ['attributes', 'xdata', 'records', 'fields'] as const) {
+    if (outer[k] || inner[k]) merged[k] = { ...outer[k], ...inner[k] } as never;
+  }
+  merged.elevation = inner.elevation ?? outer.elevation;
+  merged.insertHandle = outer.insertHandle ?? inner.insertHandle;
+  return merged;
 }
 
 export function convertDatabase(db: DwgDatabase, fileName: string): CadDrawing {
@@ -207,6 +241,68 @@ export function convertDatabase(db: DwgDatabase, fileName: string): CadDrawing {
     blocks.set(b.name, { basePoint: b.basePoint ?? { x: 0, y: 0 }, entities: (b.entities ?? []) as Ent[] });
     if (b.name.toUpperCase().startsWith('*PAPER_SPACE')) paperSpaceHandles.add(b.handle);
   }
+
+  // Extension dictionaries -> XRECORDs, for per-object records.
+  const dictionaries = new Map<string, Record<string, string>>();
+  for (const d of db.objects?.DICTIONARY ?? []) dictionaries.set(String(d.handle), d.entries ?? {});
+  const xrecords = new Map<string, XValue[]>();
+  const xrecordsByOwner = new Map<string, XValue[][]>();
+  for (const x of (db.objects?.XRECORD ?? []) as unknown as { handle: unknown; ownerHandle: unknown; data?: XValue[] }[]) {
+    xrecords.set(String(x.handle), x.data ?? []);
+    const owner = String(x.ownerHandle);
+    xrecordsByOwner.set(owner, [...(xrecordsByOwner.get(owner) ?? []), x.data ?? []]);
+  }
+
+  /** XDATA, extension-dictionary records, linetype and elevation of one entity. */
+  const ownMeta = (e: Ent): CadMeta | undefined => {
+    const meta: CadMeta = {};
+    const fields: Record<string, string> = {};
+    const collectFields = (values: (string | number)[]) => {
+      for (const v of values) {
+        const mt = typeof v === 'string' ? KEY_VALUE.exec(v) : null;
+        if (mt) fields[mt[1].trim()] = mt[2].trim();
+      }
+    };
+    if (Array.isArray(e.xdata) && e.xdata.length) {
+      meta.xdata = {};
+      e.xdata.forEach((x: Ent, i: number) => {
+        const values = flattenValues(x.value);
+        meta.xdata![printable(x.appName) ? x.appName : `APP${i + 1}`] = values;
+        collectFields(values);
+      });
+    }
+    const xdict = e.ownerDictionaryHardId ?? e.ownerDictionarySoftId;
+    if (xdict && xdict !== '0' && xdict !== true) {
+      const key = String(xdict);
+      const records: Record<string, (string | number)[]> = {};
+      const entries = dictionaries.get(key);
+      if (entries) {
+        for (const [name, handle] of Object.entries(entries)) {
+          const data = xrecords.get(String(handle));
+          if (data) records[name] = flattenValues(data);
+          else {
+            // Nested dictionary (e.g. application data grouped by table): include its records.
+            const sub = dictionaries.get(String(handle));
+            for (const [subName, subHandle] of Object.entries(sub ?? {})) {
+              const subData = xrecords.get(String(subHandle));
+              if (subData) records[`${name}/${subName}`] = flattenValues(subData);
+            }
+          }
+        }
+      } else {
+        (xrecordsByOwner.get(key) ?? []).forEach((data, i) => (records[`RECORD${i + 1}`] = flattenValues(data)));
+      }
+      if (Object.keys(records).length) {
+        meta.records = records;
+        Object.values(records).forEach(collectFields);
+      }
+    }
+    if (Object.keys(fields).length) meta.fields = fields;
+    if (typeof e.lineType === 'string' && e.lineType && !/^(bylayer|byblock)$/i.test(e.lineType)) meta.lineType = e.lineType;
+    const z = e.elevation || e.position?.z || e.center?.z || e.insertionPoint?.z || e.startPoint?.z || 0;
+    if (z && e.type !== 'LINE') meta.elevation = z;
+    return Object.keys(meta).length ? meta : undefined;
+  };
 
   const features: CadFeature[] = [];
   const skipped: Record<string, number> = {};
@@ -267,7 +363,27 @@ export function convertDatabase(db: DwgDatabase, fileName: string): CadDrawing {
     if (e.isVisible === false) return;
     const layer = resolveLayer(e, ctx);
     const color = resolveColor(e, ctx, layer);
-    const base = { layer, color, entityType: e.type, handle: e.handle, ...(ctx.block ? { block: ctx.block } : {}) };
+    let meta: CadMeta | undefined;
+    if (e.type === 'INSERT') {
+      // A block's data (attributes incl. invisible ones, XDATA, elevation) goes on everything drawn from it.
+      const attributes: Record<string, string> = {};
+      for (const at of e.attribs ?? []) {
+        let tag = String(at.tag || at.attrTag || 'ATTRIBUTE');
+        for (let n = 2; tag in attributes; n++) tag = `${at.tag || at.attrTag}_${n}`;
+        attributes[tag] = cleanText(at.text?.text ?? '');
+      }
+      const own: CadMeta = { ...ownMeta(e), insertHandle: e.handle };
+      if (Object.keys(attributes).length) own.attributes = attributes;
+      meta = mergeMeta(ctx.meta, own);
+    } else meta = mergeMeta(ctx.meta, ownMeta(e));
+    const base = {
+      layer,
+      color,
+      entityType: e.type,
+      handle: e.handle,
+      ...(ctx.block ? { block: ctx.block } : {}),
+      ...(meta ? { meta } : {}),
+    };
     const m = mul(ctx.m, ocs(e));
 
     switch (e.type) {
@@ -276,6 +392,7 @@ export function convertDatabase(db: DwgDatabase, fileName: string): CadDrawing {
           ...base,
           kind: 'line',
           coords: [apply(m, e.startPoint.x, e.startPoint.y), apply(m, e.endPoint.x, e.endPoint.y)],
+          ...(e.startPoint.z || e.endPoint.z ? { z: [e.startPoint.z ?? 0, e.endPoint.z ?? 0] } : {}),
         });
         return;
       }
@@ -420,7 +537,9 @@ export function convertDatabase(db: DwgDatabase, fileName: string): CadDrawing {
                 m: mul(m, local),
                 insertLayer: layer,
                 blockColor: color,
-                block: ctx.block ?? e.name,
+                // Name the innermost named block (anonymous *U blocks keep their parent's name).
+                block: e.name.startsWith('*') && ctx.block ? ctx.block : e.name,
+                meta,
                 depth: ctx.depth + 1,
               };
               for (const be of blk.entities) {
@@ -439,7 +558,8 @@ export function convertDatabase(db: DwgDatabase, fileName: string): CadDrawing {
           if ((at.flags ?? 0) & 1 || !at.text) continue; // invisible
           const t = at.text as Ent;
           const p = textFromBase(t);
-          const atLayer = resolveLayer(at as Ent, ctx);
+          // Attributes on layer 0 follow the insert's layer (as AutoCAD displays them).
+          const atLayer = !at.layer || at.layer === '0' ? layer : at.layer;
           emitText(
             { ...base, layer: atLayer, color: resolveColor(at as Ent, ctx, atLayer), entityType: 'ATTRIB', block: e.name },
             mul(ctx.m, ocs(at as Ent)),
@@ -468,7 +588,7 @@ export function convertDatabase(db: DwgDatabase, fileName: string): CadDrawing {
         // Dimensions are drawn from their anonymous "*D" block, already in world coordinates.
         const blk = e.name ? blocks.get(e.name) : undefined;
         if (!blk) return skip(e.type);
-        const child: Ctx = { m: ctx.m, insertLayer: layer, blockColor: color, block: ctx.block, depth: ctx.depth + 1 };
+        const child: Ctx = { m: ctx.m, insertLayer: layer, blockColor: color, block: ctx.block, meta, depth: ctx.depth + 1 };
         for (const be of blk.entities) visit(be, child);
         return;
       }

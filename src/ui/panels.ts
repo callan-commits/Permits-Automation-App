@@ -140,10 +140,11 @@ export function renderFeatureInfo(el: HTMLElement, cad: CadFeature | null): void
     return;
   }
   el.className = '';
+  const meta = cad.meta;
   const rows: [string, string][] = [
     ['Layer', `<span class="swatch" style="display:inline-block;background:${cad.color};margin-right:6px"></span>${esc(cad.layer)}`],
     ['Object', esc(cad.entityType)],
-    ['Handle', `<span class="mono">${esc(cad.handle)}</span>`],
+    ['Handle', `<span class="mono">${esc(meta?.insertHandle ?? cad.handle)}</span>`],
   ];
   if (cad.block) rows.push(['Block', esc(cad.block)]);
   if (cad.kind === 'text') rows.push(['Text', esc(cad.text).replace(/\n/g, '<br>')], ['Height', `${fmt(cad.height)} m`]);
@@ -151,7 +152,32 @@ export function renderFeatureInfo(el: HTMLElement, cad: CadFeature | null): void
     let len = 0;
     for (let i = 1; i < cad.coords.length; i++) len += Math.hypot(cad.coords[i][0] - cad.coords[i - 1][0], cad.coords[i][1] - cad.coords[i - 1][1]);
     rows.push(['Length', `${fmt(len)} m (2D)`]);
-    if (cad.z?.length) rows.push(['Levels', `${fmt(Math.min(...cad.z))} – ${fmt(Math.max(...cad.z))}`]);
+    if (cad.z?.length) {
+      const lo = Math.min(...cad.z);
+      const hi = Math.max(...cad.z);
+      rows.push(['Levels', lo === hi ? `RL ${fmt(lo, 3)}` : `RL ${fmt(lo, 3)} – ${fmt(hi, 3)}`]);
+    }
   }
-  el.innerHTML = `<dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+  if (meta?.elevation !== undefined) rows.push([cad.block ? 'Insert RL' : 'Elevation', `RL ${fmt(meta.elevation, 3)}`]);
+  if (meta?.lineType) rows.push(['Linetype', esc(meta.lineType)]);
+
+  const table = (title: string, data: Record<string, string>) =>
+    `<div class="meta-title">${title}</div><table class="meta-table">${Object.entries(data)
+      .map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v) || '<span class="muted">(blank)</span>'}</td></tr>`)
+      .join('')}</table>`;
+  const raw = (data: Record<string, (string | number)[]>) =>
+    Object.entries(data)
+      .map(([k, vals]) => `<div class="mono"><b>${esc(k)}</b>: ${vals.map((v) => esc(String(v))).join(' · ')}</div>`)
+      .join('');
+
+  let extra = '';
+  if (meta?.attributes) extra += table('Block attributes', meta.attributes);
+  if (meta?.fields) extra += table('Data fields', meta.fields);
+  if (meta?.xdata || meta?.records) {
+    extra += `<details class="meta-raw"><summary>Raw extended data</summary>${meta.xdata ? `<div class="meta-title">XDATA</div>${raw(meta.xdata)}` : ''}${
+      meta.records ? `<div class="meta-title">Records</div>${raw(meta.records)}` : ''
+    }</details>`;
+  }
+  if (!extra) extra = '<div class="muted" style="margin-top:6px">No attributes or extended data on this object.</div>';
+  el.innerHTML = `<dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>${extra}`;
 }
