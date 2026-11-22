@@ -2,6 +2,28 @@
 
 export type XY = [number, number];
 
+/**
+ * Non-graphical data carried by a CAD object. For geometry and labels that come from a block,
+ * this includes the block insert's data (e.g. a pit's OWNER / PIT_ID / RL attributes).
+ * The same object is shared by every feature from one entity or block insert.
+ */
+export interface CadMeta {
+  /** Block attribute values by tag, including invisible attributes. */
+  attributes?: Record<string, string>;
+  /** Extended entity data (XDATA) by application name, values in order. */
+  xdata?: Record<string, (string | number)[]>;
+  /** Extension dictionary records (XRECORD) by name, values in order. */
+  records?: Record<string, (string | number)[]>;
+  /** KEY=VALUE pairs found in XDATA and records, collected for convenience. */
+  fields?: Record<string, string>;
+  /** Linetype set on the object (not ByLayer). */
+  lineType?: string;
+  /** Elevation (Z / RL) of a flat object, point or block insertion point. */
+  elevation?: number;
+  /** Handle of the block insert the data came from, when it was inherited. */
+  insertHandle?: string;
+}
+
 export interface CadFeatureBase {
   layer: string;
   color: string; // hex
@@ -9,6 +31,7 @@ export interface CadFeatureBase {
   handle: string;
   /** Name of the block this came from, if it was expanded from an INSERT. */
   block?: string;
+  meta?: CadMeta;
 }
 
 export interface CadLine extends CadFeatureBase {

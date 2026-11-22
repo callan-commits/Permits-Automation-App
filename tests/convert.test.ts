@@ -93,7 +93,7 @@ describe('sample survey conversion', () => {
   });
 
   it('reads text with height and rotation', () => {
-    const t = drawing.features.find((f) => f.kind === 'text' && f.text.includes('TELSTRA')) as CadText;
+    const t = drawing.features.find((f) => f.kind === 'text' && f.entityType === 'TEXT' && f.text.includes('TELSTRA')) as CadText;
     expect(t.height).toBeCloseTo(1.2);
     expect(t.rotation).toBeCloseTo((135 * Math.PI) / 180, 4);
     const mt = drawing.features.find((f) => f.kind === 'text' && f.entityType === 'MTEXT') as CadText;
@@ -133,5 +133,22 @@ describe('focus extent', () => {
     const e = computeFocusExtent([...drawing.features, stray])!;
     expect(e[0]).toBeGreaterThan(327_000);
     expect(e[1]).toBeGreaterThan(5_800_000);
+  });
+});
+
+describe.skipIf(dwgFiles.length === 0)('DWG reader state', () => {
+  it('reads DWG and DXF files in any order on one reader', async () => {
+    const fresh = await LibreDwg.create(resolve(__dirname, '../node_modules/@mlightcad/libredwg-web/wasm'));
+    const buf = readFileSync(resolve(fixtureDir, dwgFiles[0]));
+    const dwg = () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    const counts: number[] = [];
+    for (const kind of ['dwg', 'dwg', 'dxf', 'dwg']) {
+      const ptr = kind === 'dwg' ? fresh.dwg_read_data(dwg(), Dwg_File_Type.DWG) : fresh.dwg_read_data(readFileSync(SAMPLE, 'utf8'), Dwg_File_Type.DXF);
+      counts.push(convertDatabase(fresh.convert(ptr!), kind).features.length);
+      fresh.dwg_free(ptr!);
+    }
+    expect(counts.every((n) => n > 0)).toBe(true);
+    expect(counts[0]).toBe(counts[1]);
+    expect(counts[0]).toBe(counts[3]);
   });
 });

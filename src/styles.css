@@ -110,3 +110,10 @@ select { max-width: 270px; }
 .ol-scale-line { background: rgba(29, 33, 40, 0.85); }
 .ol-scale-line-inner { color: var(--text); border-color: var(--text); }
 .ol-attribution { font-size: 11px; }
+
+.meta-title { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin: 10px 0 3px; }
+.meta-table { width: 100%; border-collapse: collapse; }
+.meta-table th, .meta-table td { text-align: left; padding: 2px 6px 2px 0; vertical-align: top; border-bottom: 1px solid var(--border); word-break: break-word; }
+.meta-table th { color: var(--muted); font-weight: 500; width: 40%; }
+.meta-raw { margin-top: 8px; }
+.meta-raw summary { cursor: pointer; color: var(--muted); }

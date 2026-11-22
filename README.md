@@ -18,7 +18,13 @@ Working:
   - Click a box to select it, drag to move it, and press Delete to remove it. Rename it in the sidebar.
   - The sidebar shows size, area, bearing, centre and corner coordinates in MGA (with **Copy corners**).
   - It also has a preliminary list of visible layers within 10 m of each box. The permit rules will replace this.
-- **Inspect**: click any utility to see its layer, object type, handle, block, length and levels.
+- **Inspect**: click any utility to see its layer, object type, handle, block, length and levels, plus all its non-graphical data (see below).
+- **Utility metadata is kept** with every object:
+  - **Block attributes by tag** (e.g. `OWNER`, `PIT_ID`, `RL_LID`), including invisible ones. They're attached to the symbol's geometry and labels, so clicking a pit shows them all.
+  - **Extended entity data (XDATA)**, with `KEY=VALUE` strings split into fields.
+  - **Extension dictionary records (XRECORD)**.
+  - **Levels**: 3D polyline and line vertex levels, plus the elevation of polylines, points, circles and block insertion points.
+  - **Linetype**, when it's set on the object itself.
 - **Privacy**: everything runs in the browser, so survey files are never uploaded anywhere.
 
 ## Running it
