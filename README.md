@@ -2,6 +2,8 @@
 
 An app intended to automate the civil engineering ground penetration permit process on rail jobs.
 
+**Open the app:** https://callan-commits.github.io/Permits-Automation-App/
+
 ## Current status (prototype v0.1)
 
 Working:
@@ -21,7 +23,9 @@ Working:
 
 ## Running it
 
-Requires [Node.js](https://nodejs.org) 20 or newer.
+The live site above is rebuilt automatically whenever `main` changes (see `.github/workflows/deploy-pages.yml`; progress is shown in the repo's **Actions** tab).
+
+To run it locally instead (e.g. while developing), you need [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
 npm install
@@ -34,7 +38,7 @@ Other commands:
 
 ```bash
 npm test           # unit tests (CAD conversion, geometry, coordinate transforms)
-npm run build      # static production build in dist/ (can be hosted on any static host)
+npm run build      # static production build in dist/ (this is what gets published)
 npm run sample     # regenerate the sample DXF (needs: pip install ezdxf)
 ```
 
