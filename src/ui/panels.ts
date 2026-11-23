@@ -1,5 +1,7 @@
 /** Sidebar panels (plain DOM). */
-import { boxDimensions, nearbyByLayer } from '../analysis/geometry';
+import { boxDimensions } from '../analysis/geometry';
+import { SCHEDULE_RADIUS } from '../analysis/schedule';
+import { type ScheduleRow, describeService, rlText } from '../services/scheduleModel';
 import type { CadDrawing, CadFeature } from '../cad/types';
 import type { BoxTool } from '../map/boxTool';
 import type { UtilityLayers } from '../map/utilityLayer';
@@ -10,8 +12,6 @@ export const esc = (s: string) =>
 
 const fmt = (n: number, dp = 2) => n.toLocaleString('en-AU', { minimumFractionDigits: dp, maximumFractionDigits: dp });
 
-/** Distance (m) used for the preliminary "nearby utilities" list. Permit rules will replace this. */
-export const NEARBY_RADIUS = 10;
 
 export function renderDrawingInfo(el: HTMLElement, drawing: CadDrawing, crsWarning: string | null): void {
   const total = drawing.features.length;
@@ -55,12 +55,22 @@ export function renderLayerList(list: HTMLElement, drawing: CadDrawing | null, u
   }
 }
 
-export function renderBoxList(el: HTMLElement, countEl: HTMLElement, tool: BoxTool, drawing: CadDrawing | null, utilities: UtilityLayers, toast: (m: string) => void): void {
+/** Rows shown on a box card before "Open schedule". */
+const CARD_ROWS = 8;
+
+export function renderBoxList(
+  el: HTMLElement,
+  countEl: HTMLElement,
+  tool: BoxTool,
+  rowsFor: (ring: [number, number][]) => ScheduleRow[] | null,
+  onOpenSchedule: (boxId: number) => void,
+  toast: (m: string) => void,
+): void {
   const boxes = tool.boxes();
   countEl.textContent = boxes.length ? String(boxes.length) : '';
   if (!boxes.length) {
     el.className = 'muted';
-    el.innerHTML = 'Use <b>▭ Box</b> or <b>⟋ Rotated box</b> to mark the excavation area.';
+    el.innerHTML = 'Use <b>▭ Box</b>, <b>⟋ Rotated box</b> or <b>⬠ Free-form</b> to mark the work area.';
     return;
   }
   el.className = '';
@@ -70,15 +80,8 @@ export function renderBoxList(el: HTMLElement, countEl: HTMLElement, tool: BoxTo
     const d = boxDimensions(box.ring);
     const card = document.createElement('div');
     card.className = `box-card${box.id === selected ? ' selected' : ''}`;
-    const xs = box.ring.map((c) => c[0]);
-    const ys = box.ring.map((c) => c[1]);
-    const candidates = utilities.featuresIn([
-      Math.min(...xs) - NEARBY_RADIUS,
-      Math.min(...ys) - NEARBY_RADIUS,
-      Math.max(...xs) + NEARBY_RADIUS,
-      Math.max(...ys) + NEARBY_RADIUS,
-    ]);
-    const nearby = drawing ? nearbyByLayer(box.ring, candidates, NEARBY_RADIUS, utilities.hiddenLayers()) : [];
+    const rows = rowsFor(box.ring)?.filter((r) => !r.excluded) ?? null;
+    const needing = rows?.filter((r) => r.needs.type || r.needs.owner || r.needs.rl).length ?? 0;
     const corners = box.ring.slice(0, -1);
     card.innerHTML = `
       <div class="box-head">
@@ -98,23 +101,29 @@ export function renderBoxList(el: HTMLElement, countEl: HTMLElement, tool: BoxTo
         ${corners.map((c, i) => `<tr><td>${i + 1}</td><td class="num">${fmt(c[0], 3)}</td><td class="num">${fmt(c[1], 3)}</td></tr>`).join('')}
         </table>
       </details>
-      <details ${nearby.length ? 'open' : ''}>
-        <summary>Visible layers within ${NEARBY_RADIUS} m (${nearby.length})</summary>
+      <details ${rows?.length ? 'open' : ''}>
+        <summary>Services within ${SCHEDULE_RADIUS} m (${rows?.length ?? 0})${needing ? ` · <span class="svc-unknown">${needing} need input</span>` : ''}</summary>
         ${
-          drawing
-            ? nearby.length
-              ? `<table><tr><th>Layer</th><th class="num">Closest</th></tr>${nearby
-                  .map(
-                    (n) =>
-                      `<tr><td><span class="swatch" style="display:inline-block;background:${n.color};margin-right:6px"></span>${esc(n.layer)}</td>
-                       <td class="num">${n.minDistance === 0 ? '<b>in box</b>' : `${fmt(n.minDistance)} m`}</td></tr>`,
-                  )
-                  .join('')}</table>`
+          rows
+            ? rows.length
+              ? `<table class="card-sched">${rows
+                  .slice(0, CARD_ROWS)
+                  .map((r) => {
+                    const desc = describeService(r.info);
+                    const unknown = r.needs.type || r.needs.owner;
+                    const rl = rlText(r);
+                    return `<tr><td class="mono">${r.id}</td>
+                      <td class="${unknown ? 'svc-unknown' : ''}">${esc(desc)}</td>
+                      <td class="num">${r.entry.distance === 0 ? '<b>in box</b>' : `${fmt(r.entry.distance)} m`}</td>
+                      <td class="num mono ${r.needs.rl ? 'svc-unknown' : ''}" title="RL">${rl ? esc(rl) : 'no RL'}</td></tr>`;
+                  })
+                  .join('')}</table>${rows.length > CARD_ROWS ? `<div class="muted">…and ${rows.length - CARD_ROWS} more</div>` : ''}`
               : '<div class="muted">None</div>'
             : '<div class="muted">Load a drawing to check.</div>'
         }
       </details>
       <div class="box-actions">
+        ${rows ? '<button class="btn small primary" data-act="schedule">Open schedule</button>' : ''}
         <button class="btn small" data-act="copy">Copy corners</button>
       </div>
       ${box.id === selected ? '<div class="muted" style="margin-top:6px">Drag the box to move it · drag a corner to reshape · click an edge to add a corner · Alt+click a corner to remove it</div>' : ''}
@@ -123,6 +132,7 @@ export function renderBoxList(el: HTMLElement, countEl: HTMLElement, tool: BoxTo
     card.addEventListener('click', (e) => {
       const act = (e.target as HTMLElement).closest('[data-act]')?.getAttribute('data-act');
       if (act === 'delete') tool.remove(box.id);
+      else if (act === 'schedule') onOpenSchedule(box.id);
       else if (act === 'zoom') tool.zoomTo(box.id);
       else if (act === 'copy') {
         const text = ['Corner\tEasting\tNorthing', ...corners.map((c, i) => `${i + 1}\t${c[0].toFixed(3)}\t${c[1].toFixed(3)}`)].join('\n');

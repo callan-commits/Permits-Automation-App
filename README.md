@@ -24,6 +24,14 @@ Working:
   - Unknowns are highlighted for you to fill in. Edits are remembered in the browser for any drawing using the same layer names.
   - Owner abbreviations are recognised (MTM → Metro Trains Melbourne, UE → United Energy, SEW → South East Water…).
   - Overhead services are drawn dashed.
+- **Box schedule**: for each box, every service within 10 m (box card summary, plus **Open schedule** for the full table):
+  - **Where it is**: crosses the box (RL at each crossing point), inside it, or near it (RL at its closest point, and the horizontal distance from the box outline).
+  - **RLs**, best source first: the line's own 3D levels interpolated at that exact point, the object's elevation, an RL attribute, then a nearby "RL 12.345" text label. The source is shown, and a level of exactly 0 counts as not set.
+  - "~" marks levels not surveyed to QL-A, as on existing markups.
+  - Pits and other block symbols are treated as one item.
+  - Unknown owner, type or RL is highlighted. Type over any value to correct it, or untick to leave a service off. Edits are remembered per drawing.
+  - Map markers (S1, S2…) show where each RL applies, with a dashed line showing the gap for services that don't cross.
+  - Layers can be marked **not a service** in the Services table (survey points, fences, contours…).
 - **Inspect**: click any utility to see its layer, object type, handle, block, length and levels, plus all its non-graphical data (see below).
 - **Utility metadata is kept** with every object:
   - **Block attributes by tag** (e.g. `OWNER`, `PIT_ID`, `RL_LID`), including invisible ones. They're attached to the symbol's geometry and labels, so clicking a pit shows them all.

@@ -323,3 +323,45 @@ export function nearbyByLayer(ring: XY[], features: CadFeature[], radius: number
   }
   return [...byLayer.values()].sort((a, b) => a.minDistance - b.minDistance || a.layer.localeCompare(b.layer));
 }
+
+/** Intersection of segments a-b and c-d (including touching ends): parameter t along a-b and the point. */
+export function segmentIntersection(a: XY, b: XY, c: XY, d: XY): { t: number; u: number; point: XY } | null {
+  const r: XY = [b[0] - a[0], b[1] - a[1]];
+  const s: XY = [d[0] - c[0], d[1] - c[1]];
+  const denom = r[0] * s[1] - r[1] * s[0];
+  if (Math.abs(denom) < 1e-12) return null; // parallel or collinear: no single crossing point
+  const qp: XY = [c[0] - a[0], c[1] - a[1]];
+  const t = (qp[0] * s[1] - qp[1] * s[0]) / denom;
+  const u = (qp[0] * r[1] - qp[1] * r[0]) / denom;
+  const eps = 1e-9;
+  if (t < -eps || t > 1 + eps || u < -eps || u > 1 + eps) return null;
+  const tc = Math.min(1, Math.max(0, t));
+  return { t: tc, u: Math.min(1, Math.max(0, u)), point: [a[0] + tc * r[0], a[1] + tc * r[1]] };
+}
+
+/** Closest point on segment a-b to p, with its parameter t. */
+export function closestOnSegment(p: XY, a: XY, b: XY): { t: number; point: XY; distance: number } {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const l2 = dx * dx + dy * dy;
+  let t = l2 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  const point: XY = [a[0] + t * dx, a[1] + t * dy];
+  return { t, point, distance: Math.hypot(p[0] - point[0], p[1] - point[1]) };
+}
+
+/**
+ * Closest points between segment a-b and segment c-d (which don't cross):
+ * the point on a-b (with parameter t), the point on c-d, and the distance.
+ */
+export function closestBetweenSegments(a: XY, b: XY, c: XY, d: XY): { t: number; onAB: XY; onCD: XY; distance: number } {
+  const x = segmentIntersection(a, b, c, d);
+  if (x) return { t: x.t, onAB: x.point, onCD: x.point, distance: 0 };
+  const candidates = [
+    (() => { const q = closestOnSegment(a, c, d); return { t: 0, onAB: a, onCD: q.point, distance: q.distance }; })(),
+    (() => { const q = closestOnSegment(b, c, d); return { t: 1, onAB: b, onCD: q.point, distance: q.distance }; })(),
+    (() => { const q = closestOnSegment(c, a, b); return { t: q.t, onAB: q.point, onCD: c, distance: q.distance }; })(),
+    (() => { const q = closestOnSegment(d, a, b); return { t: q.t, onAB: q.point, onCD: d, distance: q.distance }; })(),
+  ];
+  return candidates.reduce((best, cnd) => (cnd.distance < best.distance ? cnd : best));
+}

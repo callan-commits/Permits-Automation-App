@@ -63,20 +63,23 @@ export class ServicesDialog {
     const layerColour = new Map(drawing.layers.map((l) => [l.name, l.color]));
     body.innerHTML = rows.length
       ? `<table class="svc-table">
-          <thead><tr><th>Layer</th><th>Service type</th><th>Owner</th><th title="Overhead services go on the overheads plan">Overhead</th><th></th></tr></thead>
+          <thead><tr><th title="Untick for layers that aren't services (survey points, fences, contours...)">Service?</th><th>Layer</th><th>Service type</th><th>Owner</th><th title="Overhead services go on the overheads plan">Overhead</th><th></th></tr></thead>
           <tbody>${rows.map((r) => this.row(r, layerColour.get(r.layer) ?? '#fff')).join('')}</tbody>
         </table>`
       : '<p class="muted">Nothing needs input. 👍</p>';
     body.querySelectorAll<HTMLTableRowElement>('tr[data-layer]').forEach((tr) => {
       const layer = tr.dataset.layer!;
-      tr.querySelector<HTMLInputElement>('input.svc-type')!.addEventListener('change', (e) =>
+      tr.querySelector<HTMLInputElement>('input.svc-type')?.addEventListener('change', (e) =>
         this.register.setLayer(layer, { type: (e.target as HTMLInputElement).value.trim() }),
       );
-      tr.querySelector<HTMLInputElement>('input.svc-owner')!.addEventListener('change', (e) =>
+      tr.querySelector<HTMLInputElement>('input.svc-owner')?.addEventListener('change', (e) =>
         this.register.setLayer(layer, { owner: (e.target as HTMLInputElement).value.trim() }),
       );
-      tr.querySelector<HTMLInputElement>('input.svc-oh')!.addEventListener('change', (e) =>
+      tr.querySelector<HTMLInputElement>('input.svc-oh')?.addEventListener('change', (e) =>
         this.register.setLayer(layer, { overhead: (e.target as HTMLInputElement).checked }),
+      );
+      tr.querySelector<HTMLInputElement>('input.svc-use')!.addEventListener('change', (e) =>
+        this.register.setLayer(layer, { ignore: !(e.target as HTMLInputElement).checked }),
       );
       tr.querySelector<HTMLButtonElement>('button.svc-reset')?.addEventListener('click', () => this.register.resetLayer(layer));
     });
@@ -91,11 +94,13 @@ export class ServicesDialog {
         <div class="src">${SOURCE_LABEL[src]}</div>${extra}
       </td>`;
     const edited = Object.keys(r.setting).length > 0;
-    return `<tr data-layer="${esc(r.layer)}" class="${r.incomplete ? 'incomplete' : ''}">
+    return `<tr data-layer="${esc(r.layer)}" class="${r.incomplete ? 'incomplete' : ''}${r.ignored ? ' ignored' : ''}">
+      <td class="oh-cell"><input type="checkbox" class="svc-use" ${r.ignored ? '' : 'checked'} /></td>
       <td class="layer-cell"><span class="swatch" style="background:${colour}"></span>${esc(r.layer)}<div class="src">${r.featureCount} object${r.featureCount === 1 ? '' : 's'}</div></td>
+      ${r.ignored ? '<td colspan="3" class="muted">Not a service: left out of schedules, callouts and permits</td>' : `
       ${field('svc-type', 'service-type-options', r.type, 'Unknown: fill in', r.source.type, mixed(r.dataTypes))}
-      ${field('svc-owner', 'owner-options', r.owner, 'Unknown: fill in', r.source.owner, mixed(r.dataOwners))}
-      <td class="oh-cell"><input type="checkbox" class="svc-oh" ${r.overhead ? 'checked' : ''} /><div class="src">${SOURCE_LABEL[r.source.overhead]}</div></td>
+      ${field('svc-owner', 'owner-options', r.owner, 'Unknown: fill in', r.source.owner, mixed(r.dataOwners))}`}
+      ${r.ignored ? '' : `<td class="oh-cell"><input type="checkbox" class="svc-oh" ${r.overhead ? 'checked' : ''} /><div class="src">${SOURCE_LABEL[r.source.overhead]}</div></td>`}
       <td>${edited ? '<button type="button" class="btn small svc-reset" title="Forget your edits for this layer">Reset</button>' : ''}</td>
     </tr>`;
   }
