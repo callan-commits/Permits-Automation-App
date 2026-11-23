@@ -59,3 +59,61 @@ describe('coordinate systems', () => {
     expect(checkExtentLooksLikeMga([144.9, -37.9, 145.1, -37.8])).toMatch(/latitude/);
   });
 });
+
+describe('free-form shapes', () => {
+  it('gives exact side lengths for a rotated rectangle', async () => {
+    const { boxDimensions } = await import('../src/analysis/geometry');
+    // 18 x 5 m rectangle at bearing 135 deg, on MGA-sized coordinates
+    const b = (135 * Math.PI) / 180;
+    const u: XY = [Math.sin(b), Math.cos(b)];
+    const n: XY = [-u[1], u[0]];
+    const o: XY = [327842.9, 5805970.5];
+    const p = (s: number, w: number): XY => [o[0] + s * u[0] + w * n[0], o[1] + s * u[1] + w * n[1]];
+    const d = boxDimensions([p(0, 0), p(18, 0), p(18, 5), p(0, 5), p(0, 0)]);
+    expect(d.length).toBeCloseTo(18, 6);
+    expect(d.width).toBeCloseTo(5, 6);
+    expect(d.area).toBeCloseTo(90, 6);
+    expect(d.perimeter).toBeCloseTo(46, 6);
+    expect(d.bearing).toBeCloseTo(135, 6);
+    expect(d.centre[0]).toBeCloseTo(p(9, 2.5)[0], 6);
+    expect(d.centre[1]).toBeCloseTo(p(9, 2.5)[1], 6);
+  });
+
+  it('measures an L-shaped polygon', async () => {
+    const { boxDimensions } = await import('../src/analysis/geometry');
+    // L shape: 10x10 square minus 6x6 corner = 64 m2
+    const ring: XY[] = [[0, 0], [10, 0], [10, 4], [4, 4], [4, 10], [0, 10], [0, 0]];
+    const d = boxDimensions(ring);
+    expect(d.area).toBeCloseTo(64);
+    expect(d.perimeter).toBeCloseTo(40);
+    expect(d.length).toBeCloseTo(10);
+    expect(d.width).toBeCloseTo(10);
+    expect(d.vertexCount).toBe(6);
+    // centroid of the L (by composite areas)
+    expect(d.centre[0]).toBeCloseTo((40 * 5 + 24 * 2) / 64, 6);
+  });
+
+  it('rejects crossing edges and degenerate shapes, accepts valid ones', async () => {
+    const { invalidShapeReason } = await import('../src/analysis/geometry');
+    expect(invalidShapeReason([[0, 0], [10, 10], [10, 0], [0, 10], [0, 0]])).toMatch(/cross/); // bow-tie
+    expect(invalidShapeReason([[0, 0], [10, 0], [20, 0], [0, 0]])).toMatch(/no width/);
+    expect(invalidShapeReason([[0, 0], [10, 0], [0, 0]])).toMatch(/3 corners/);
+    expect(invalidShapeReason([[0, 0], [10, 0], [10, 4], [4, 4], [4, 10], [0, 10], [0, 0]])).toBeNull();
+  });
+
+  it('normalises drawn rings: closed, counter-clockwise, no repeats', async () => {
+    const { normaliseRing, signedArea } = await import('../src/analysis/geometry');
+    const r = normaliseRing([[0, 10], [10, 10], [10, 10], [10, 0], [0, 0], [0, 10]]);
+    expect(r[0]).toEqual(r[r.length - 1]);
+    expect(r.length).toBe(5);
+    expect(signedArea(r)).toBeGreaterThan(0);
+    expect(r[0]).toEqual([0, 0]);
+  });
+
+  it('measures distances from a concave shape correctly', () => {
+    // A line passing through the notch of the L is outside the shape
+    const ring: XY[] = [[0, 0], [10, 0], [10, 4], [4, 4], [4, 10], [0, 10], [0, 0]];
+    expect(polygonToLineDistance(ring, [[7, 7], [9, 9]])).toBeCloseTo(3);
+    expect(polygonToLineDistance(ring, [[2, -5], [2, 15]])).toBe(0);
+  });
+});

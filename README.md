@@ -12,12 +12,13 @@ Working:
 - **Display over aerial imagery**: the map runs in the survey's own grid (MGA2020 Zone 54/55/56, or MGA94 for older surveys). Free imagery (Esri World Imagery) or OpenStreetMap is reprojected to fit. Drawing coordinates are never altered.
 - **Layers panel**: colours follow the CAD layer colours, with toggles, a filter and a feature count. Layers that are off or frozen in the drawing start hidden.
 - **CAD objects drawn**: lines, polylines (including arcs and bulges, and 3D polylines with levels), arcs, circles, ellipses, splines, points, text/MTEXT, block inserts with attributes (nested), hatches, solids and dimensions.
-- **Draw excavation boxes**:
-  - **▭ Box** draws a grid-aligned box (click two corners).
-  - **⟋ Rotated box** draws a box at any angle: two clicks along one edge, then a third click to set the width. Useful along a rail corridor.
-  - Click a box to select it, drag to move it, and press Delete to remove it. Rename it in the sidebar.
-  - The sidebar shows size, area, bearing, centre and corner coordinates in MGA (with **Copy corners**).
-  - It also has a preliminary list of visible layers within 10 m of each box. The permit rules will replace this.
+- **Draw work areas ("boxes")**:
+  - **▭ Box** draws a rectangle square to the screen (click two corners).
+  - **⟋ Rotated box**: two clicks along one edge, then a third click to set the width.
+  - **⬠ Free-form** draws any shape. Click each corner, then finish by clicking the first corner, double-clicking or pressing Enter. Backspace undoes a corner.
+  - Select a box to edit it: drag inside to move it, drag a corner to reshape it, click an edge to add a corner, and Alt+click a corner to remove it. Shapes whose edges cross are rejected.
+  - The sidebar shows area, perimeter, extents, bearing, centre and every corner in MGA (with **Copy corners**).
+- **Rotate the map**: use the rotation box (type degrees, or ±15° buttons), **North up**, **Align to box** (puts the selected box's long side left to right), Alt+Shift+drag, or a two-finger twist. The north arrow always shows grid north.
 - **Inspect**: click any utility to see its layer, object type, handle, block, length and levels, plus all its non-graphical data (see below).
 - **Utility metadata is kept** with every object:
   - **Block attributes by tag** (e.g. `OWNER`, `PIT_ID`, `RL_LID`), including invisible ones. They're attached to the symbol's geometry and labels, so clicking a pit shows them all.

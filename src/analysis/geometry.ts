@@ -20,26 +20,157 @@ export function signedOffset(a: XY, b: XY, p: XY): number {
 }
 
 export interface BoxDimensions {
-  /** Longer side, m */
+  /** Length of the smallest rectangle enclosing the shape (longer side), m */
   length: number;
-  /** Shorter side, m */
+  /** Width of that rectangle (shorter side), m */
   width: number;
+  /** True area of the shape, m² */
   area: number;
-  /** Grid bearing of the long side, degrees 0-180 clockwise from grid north. */
+  /** Perimeter of the shape, m */
+  perimeter: number;
+  /** Grid bearing of the enclosing rectangle's long side, degrees 0-180 clockwise from grid north. */
   bearing: number;
+  /** Area centroid. */
   centre: XY;
+  vertexCount: number;
 }
 
+/** Open ring (closing point removed). */
+const openRing = (ring: XY[]): XY[] => {
+  const n = ring.length;
+  return n > 1 && ring[0][0] === ring[n - 1][0] && ring[0][1] === ring[n - 1][1] ? ring.slice(0, -1) : ring.slice();
+};
+
+/** Signed area (+ve counter-clockwise). */
+export function signedArea(ring: XY[]): number {
+  const pts = openRing(ring);
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const q = pts[(i + 1) % pts.length];
+    a += p[0] * q[1] - q[0] * p[1];
+  }
+  return a / 2;
+}
+
+function convexHull(points: XY[]): XY[] {
+  const pts = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (pts.length < 3) return pts;
+  const cross = (o: XY, a: XY, b: XY) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower: XY[] = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper: XY[] = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}
+
+/** Dimensions of any closed shape (rectangles give their exact side lengths). */
 export function boxDimensions(ring: XY[]): BoxDimensions {
-  const [a, b, c] = ring;
-  const s1 = Math.hypot(b[0] - a[0], b[1] - a[1]);
-  const s2 = Math.hypot(c[0] - b[0], c[1] - b[1]);
-  const [p, q] = s1 >= s2 ? [a, b] : [b, c];
-  let bearing = (Math.atan2(q[0] - p[0], q[1] - p[1]) * 180) / Math.PI;
-  bearing = ((bearing % 180) + 180) % 180;
-  const pts = ring.slice(0, 4);
-  const centre: XY = [pts.reduce((s, v) => s + v[0], 0) / pts.length, pts.reduce((s, v) => s + v[1], 0) / pts.length];
-  return { length: Math.max(s1, s2), width: Math.min(s1, s2), area: s1 * s2, bearing, centre };
+  const pts = openRing(ring);
+  const area2 = signedArea(pts) * 2;
+  let cx = 0;
+  let cy = 0;
+  let perimeter = 0;
+  // Centroid relative to the first vertex, to keep precision with large MGA coordinates.
+  const [ox, oy] = pts[0];
+  for (let i = 0; i < pts.length; i++) {
+    const [x0, y0] = [pts[i][0] - ox, pts[i][1] - oy];
+    const [x1, y1] = [pts[(i + 1) % pts.length][0] - ox, pts[(i + 1) % pts.length][1] - oy];
+    const f = x0 * y1 - x1 * y0;
+    cx += (x0 + x1) * f;
+    cy += (y0 + y1) * f;
+    perimeter += Math.hypot(x1 - x0, y1 - y0);
+  }
+  const centre: XY = area2 ? [ox + cx / (3 * area2), oy + cy / (3 * area2)] : [ox, oy];
+  // Minimum-area enclosing rectangle: one of its sides lies along a convex hull edge.
+  const hull = convexHull(pts);
+  let best = { area: Infinity, length: 0, width: 0, bearing: 0 };
+  for (let i = 0; i < hull.length; i++) {
+    const a = hull[i];
+    const b = hull[(i + 1) % hull.length];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (len === 0) continue;
+    const ux = (b[0] - a[0]) / len;
+    const uy = (b[1] - a[1]) / len;
+    let minU = Infinity;
+    let maxU = -Infinity;
+    let minV = Infinity;
+    let maxV = -Infinity;
+    for (const p of hull) {
+      const u = (p[0] - a[0]) * ux + (p[1] - a[1]) * uy;
+      const v = -(p[0] - a[0]) * uy + (p[1] - a[1]) * ux;
+      minU = Math.min(minU, u);
+      maxU = Math.max(maxU, u);
+      minV = Math.min(minV, v);
+      maxV = Math.max(maxV, v);
+    }
+    const du = maxU - minU;
+    const dv = maxV - minV;
+    if (du * dv < best.area - 1e-9) {
+      // Bearing of the longer side.
+      const [bx, by] = du >= dv ? [ux, uy] : [-uy, ux];
+      let bearing = (Math.atan2(bx, by) * 180) / Math.PI;
+      bearing = ((bearing % 180) + 180) % 180;
+      best = { area: du * dv, length: Math.max(du, dv), width: Math.min(du, dv), bearing };
+    }
+  }
+  return { length: best.length, width: best.width, area: Math.abs(area2) / 2, perimeter, bearing: best.bearing, centre, vertexCount: pts.length };
+}
+
+/** True if any two non-adjacent edges of the ring cross or touch. */
+export function selfIntersects(ring: XY[]): boolean {
+  const pts = openRing(ring);
+  const n = pts.length;
+  if (n < 4) return false;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % n];
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue; // adjacent through the closing edge
+      const c = pts[j];
+      const d = pts[(j + 1) % n];
+      if (segmentsIntersect(a, b, c, d) || pointSegmentDistance(c, a, b) < 1e-9 || pointSegmentDistance(a, c, d) < 1e-9) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Clean up a drawn ring: drop repeated points, make it counter-clockwise,
+ * start at the south-west-most vertex and close it.
+ */
+export function normaliseRing(ring: XY[]): XY[] {
+  let pts: XY[] = [];
+  for (const p of openRing(ring)) {
+    const last = pts[pts.length - 1];
+    if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) > 1e-6) pts.push([p[0], p[1]]);
+  }
+  while (pts.length > 1 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) <= 1e-6) pts.pop();
+  if (signedArea(pts) < 0) pts = pts.reverse();
+  let start = 0;
+  pts.forEach((p, i) => {
+    if (p[0] + p[1] < pts[start][0] + pts[start][1]) start = i;
+  });
+  pts = [...pts.slice(start), ...pts.slice(0, start)];
+  return pts.length ? [...pts, pts[0]] : pts;
+}
+
+/** Reason a drawn shape can't be used as a work area, or null if it's fine. */
+export function invalidShapeReason(ring: XY[]): string | null {
+  const pts = openRing(ring);
+  if (pts.length < 3) return 'it needs at least 3 corners';
+  // Check crossings first: a bow-tie's signed area cancels out and would look "flat".
+  if (selfIntersects(ring)) return 'its edges cross each other';
+  const d = boxDimensions(ring);
+  if (d.width < 0.05 || d.area < 0.01) return 'it has no width';
+  return null;
 }
 
 export function pointInPolygon(p: XY, ring: XY[]): boolean {
@@ -61,7 +192,7 @@ export function pointSegmentDistance(p: XY, a: XY, b: XY): number {
   return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
 }
 
-function segmentsIntersect(a: XY, b: XY, c: XY, d: XY): boolean {
+export function segmentsIntersect(a: XY, b: XY, c: XY, d: XY): boolean {
   const o = (p: XY, q: XY, r: XY) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
   const d1 = o(c, d, a);
   const d2 = o(c, d, b);

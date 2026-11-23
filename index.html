@@ -15,8 +15,9 @@
       </label>
       <button id="load-sample" class="btn" title="Load a synthetic test survey">Load sample</button>
       <span class="sep"></span>
-      <button id="draw-rect" class="btn tool" title="Click and drag (or click two corners) to draw a grid-aligned box">▭ Box</button>
+      <button id="draw-rect" class="btn tool" title="Click two opposite corners (or click-drag) to draw a box square to the screen">▭ Box</button>
       <button id="draw-rotated" class="btn tool" title="Click two points along one edge, then a third to set the width">⟋ Rotated box</button>
+      <button id="draw-polygon" class="btn tool" title="Click each corner; finish by clicking the first corner, double-clicking or pressing Enter">⬠ Free-form</button>
       <span class="sep"></span>
       <label class="field">Grid
         <select id="crs-select"></select>
@@ -58,6 +59,13 @@
       <div class="map-wrap">
         <div id="map" class="map"></div>
         <div id="draw-hint" class="draw-hint" hidden></div>
+        <div class="rotate-ctl" title="Rotate the map. You can also hold Alt+Shift and drag, or twist with two fingers.">
+          <button id="rot-ccw" class="btn small" title="Rotate 15° anticlockwise">⟲</button>
+          <label class="rot-field"><input id="rot-input" type="number" step="1" min="-180" max="180" aria-label="Map rotation in degrees, clockwise" />°</label>
+          <button id="rot-cw" class="btn small" title="Rotate 15° clockwise">⟳</button>
+          <button id="rot-north" class="btn small" title="Grid north up">North up</button>
+          <button id="rot-box" class="btn small" title="Rotate so the selected box runs left to right">Align to box</button>
+        </div>
         <div id="drop-overlay" class="drop-overlay" hidden>Drop DWG / DXF to open</div>
         <div id="busy" class="busy" hidden><div class="spinner"></div><span id="busy-text">Reading drawing…</span></div>
         <div id="toast" class="toast" hidden></div>

@@ -2,7 +2,7 @@ import 'ol/ol.css';
 import './styles.css';
 import Map from 'ol/Map';
 import View from 'ol/View';
-import { ScaleLine, defaults as defaultControls } from 'ol/control';
+import { Rotate, ScaleLine, defaults as defaultControls } from 'ol/control';
 import type TileLayer from 'ol/layer/Tile';
 import { loadCadFile } from './cad/loader';
 import type { CadDrawing, CadFeature } from './cad/types';
@@ -10,12 +10,14 @@ import { CRS_OPTIONS, DEFAULT_CRS, checkExtentLooksLikeMga, projection, register
 import { BASEMAPS, type BasemapId, createBasemapLayer } from './map/basemaps';
 import { BoxTool, type DrawMode } from './map/boxTool';
 import { UtilityLayers } from './map/utilityLayer';
+import { boxDimensions } from './analysis/geometry';
 import { renderBoxList, renderDrawingInfo, renderFeatureInfo, renderLayerList } from './ui/panels';
 import proj4 from 'proj4';
 
 registerCrs();
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+const rotInput = $<HTMLInputElement>('rot-input');
 
 // ---- persisted settings (best effort) ----
 const store = {
@@ -41,8 +43,9 @@ let drawing: CadDrawing | null = null;
 
 // ---- map ----
 const MELBOURNE_LONLAT = [144.9631, -37.8136];
-function makeView(code: string, center?: number[], resolution?: number): View {
+function makeView(code: string, center?: number[], resolution?: number, rotation = 0): View {
   return new View({
+    rotation,
     projection: projection(code),
     center: center ?? proj4('EPSG:4326', code, MELBOURNE_LONLAT),
     resolution: resolution ?? 20,
@@ -55,7 +58,11 @@ function makeView(code: string, center?: number[], resolution?: number): View {
 const utilities = new UtilityLayers();
 const map = new Map({
   target: 'map',
-  controls: defaultControls({ attributionOptions: { collapsible: true, collapsed: false } }).extend([new ScaleLine({ units: 'metric' })]),
+  controls: defaultControls({ rotate: false, attributionOptions: { collapsible: true, collapsed: false } }).extend([
+    new ScaleLine({ units: 'metric' }),
+    // Always-visible north arrow; click to return to north up.
+    new Rotate({ autoHide: false, label: northArrow(), tipLabel: 'Grid north (click for north up)' }),
+  ]),
   view: makeView(crsCode),
   layers: [utilities.geometryLayer, utilities.textLayer, utilities.highlightLayer],
 });
@@ -78,7 +85,8 @@ function setCrs(code: string) {
   // Drawing and box coordinates are interpreted in the chosen grid, so they keep their numbers;
   // only the view (and therefore where the imagery lands) changes.
   const v = map.getView();
-  map.setView(makeView(code, v.getCenter(), v.getResolution()));
+  map.setView(makeView(code, v.getCenter(), v.getResolution(), v.getRotation()));
+  watchRotation();
   crsCode = code;
   store.set('crs', code);
   $('status-crs').textContent = CRS_OPTIONS.find((c) => c.code === code)!.label.split(' (')[0];
@@ -101,11 +109,13 @@ basemapSelect.addEventListener('change', () => setBasemap(basemapSelect.value as
 const drawButtons: Record<Exclude<DrawMode, 'none'>, HTMLButtonElement> = {
   rect: $<HTMLButtonElement>('draw-rect'),
   rotated: $<HTMLButtonElement>('draw-rotated'),
+  polygon: $<HTMLButtonElement>('draw-polygon'),
 };
 const HINTS: Record<DrawMode, string> = {
   none: '',
   rect: 'Click two opposite corners (or click-drag). Esc to cancel.',
   rotated: 'Click two points along one edge, then a third to set the width. Esc to cancel.',
+  polygon: 'Click each corner. Finish: click the first corner, double-click or press Enter. Backspace undoes a corner, Esc cancels.',
 };
 for (const [mode, btn] of Object.entries(drawButtons) as [Exclude<DrawMode, 'none'>, HTMLButtonElement][]) {
   btn.addEventListener('click', () => boxes.setMode(boxes.currentMode === mode ? 'none' : mode));
@@ -116,6 +126,50 @@ boxes.onModeChange((mode) => {
   hint.hidden = mode === 'none';
   hint.textContent = HINTS[mode];
   $('map').style.cursor = mode === 'none' ? '' : 'crosshair';
+});
+
+// ---- map rotation ----
+function northArrow(): HTMLElement {
+  const el = document.createElement('span');
+  el.className = 'north-arrow';
+  el.innerHTML = '<b>▲</b>N';
+  return el;
+}
+/** View rotation in degrees, clockwise, normalised to (-180, 180]. */
+function toDegrees(rad: number): number {
+  let d = ((rad * 180) / Math.PI) % 360;
+  if (d > 180) d -= 360;
+  if (d <= -180) d += 360;
+  return Math.round(d * 10) / 10;
+}
+function setRotationDegrees(deg: number) {
+  map.getView().animate({ rotation: (deg * Math.PI) / 180, duration: 250 });
+}
+function watchRotation() {
+  const view = map.getView();
+  const show = () => {
+    if (document.activeElement !== rotInput) rotInput.value = String(toDegrees(view.getRotation()));
+  };
+  view.on('change:rotation', show);
+  show();
+}
+watchRotation();
+rotInput.addEventListener('change', () => {
+  const v = parseFloat(rotInput.value);
+  if (Number.isFinite(v)) setRotationDegrees(v);
+});
+$('rot-cw').addEventListener('click', () => setRotationDegrees(toDegrees(map.getView().getRotation()) + 15));
+$('rot-ccw').addEventListener('click', () => setRotationDegrees(toDegrees(map.getView().getRotation()) - 15));
+$('rot-north').addEventListener('click', () => setRotationDegrees(0));
+$('rot-box').addEventListener('click', () => {
+  const list = boxes.boxes();
+  const box = list.find((b) => b.id === boxes.selectedId) ?? (list.length === 1 ? list[0] : undefined);
+  if (!box) return toast(list.length ? 'Select a box first (click it on the map).' : 'Draw a box first.', true);
+  // OpenLayers rotation is clockwise. A direction with grid bearing b shows at screen bearing b + r;
+  // r = 90° - b puts the box's long side left-to-right.
+  const d = boxDimensions(box.ring);
+  setRotationDegrees(90 - d.bearing);
+  map.getView().animate({ center: d.centre, duration: 250 });
 });
 
 // ---- feedback ----
