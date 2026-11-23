@@ -2,7 +2,8 @@
 import { SCHEDULE_RADIUS } from '../analysis/schedule';
 import { OWNERS, SERVICE_TYPES } from '../services/dictionary';
 import { type ScheduleEdits, type ScheduleRow, rlText } from '../services/scheduleModel';
-import { esc } from './panels';
+import type { PermitCheck } from '../permits/evaluate';
+import { esc, permitReason } from './panels';
 
 const RL_SOURCE: Record<string, string> = {
   '3D line': 'from the line’s 3D levels',
@@ -19,7 +20,7 @@ export class ScheduleDialog {
 
   constructor(
     private edits: ScheduleEdits,
-    private getRows: (boxId: number) => { name: string; rows: ScheduleRow[] } | null,
+    private getRows: (boxId: number) => { name: string; rows: ScheduleRow[]; permits: PermitCheck | null; ruleCount: number } | null,
     private onShowRow: (row: ScheduleRow) => void,
   ) {
     this.dialog = document.createElement('dialog');
@@ -49,7 +50,7 @@ export class ScheduleDialog {
       this.dialog.close();
       return;
     }
-    const { name, rows } = data;
+    const { name, rows, permits, ruleCount } = data;
     const needing = rows.filter((r) => !r.excluded && (r.needs.type || r.needs.owner || r.needs.rl)).length;
     const scrollTop = this.dialog.querySelector('.dlg-body')?.scrollTop ?? 0;
     this.dialog.innerHTML = `
@@ -61,7 +62,7 @@ export class ScheduleDialog {
       “~” marks a level not surveyed to QL-A. <b class="needs">Highlighted</b> cells need your input. Type over any value to correct it.
       Untick <i>Include</i> to leave a service off the plan. Click a row's ID to show it on the map.
       ${needing ? `<br><b class="svc-unknown">${needing} service${needing === 1 ? '' : 's'} need${needing === 1 ? 's' : ''} input.</b>` : ''}</p>
-      <div class="dlg-body">${
+      <div class="dlg-body">${this.permits(permits, ruleCount, rows)}${
         rows.length
           ? `<table class="svc-table sched-table">
           <thead><tr><th>ID</th><th>Service type</th><th>Owner</th><th>QL</th><th>Details / layer</th><th>Where</th><th class="num">Distance</th><th>RL</th><th>Include</th></tr></thead>
@@ -93,6 +94,31 @@ export class ScheduleDialog {
       );
       tr.querySelector<HTMLButtonElement>('.sch-show')!.addEventListener('click', () => this.onShowRow(row));
     }
+  }
+
+  private permits(check: PermitCheck | null, ruleCount: number, rows: ScheduleRow[]): string {
+    if (!ruleCount) return '<div class="permit-section"><h3>Permits</h3><span class="muted">No permit rules loaded. Use <b>Permit rules</b> in the toolbar to import your cheat sheet.</span></div>';
+    if (!check) return '';
+    const idOf = (key: string) => rows.find((r) => r.key === key && !r.excluded)?.id;
+    const ids = (key: string) => (idOf(key) ? ` (${idOf(key)})` : '');
+    const required = check.required.length
+      ? `<ul>${check.required
+          .map((p) => `<li><span class="permit-chip">${esc(p.permit)}</span> ${esc(permitReason(p.triggers))}${p.triggers.map((t) => ids(t.runKey)).join('')}</li>`)
+          .join('')}</ul>`
+      : '<div class="muted">No permits required by the current rules.</div>';
+    const unknown = check.unknownOwners.length
+      ? `<div class="svc-unknown">⚠ Owner unknown for ${check.unknownOwners
+          .map((u) => `${esc(u.layer)}${ids(u.runKey)} at ${u.distance === 0 ? '0 m' : `${u.distance.toFixed(2)} m`}`)
+          .join(', ')}. One of these may need a permit; fill in the owner below.</div>`
+      : '';
+    const table = `<details><summary class="muted">All rules checked</summary><table class="svc-table"><thead><tr><th>Owner</th><th class="num">Trigger</th><th>Permit</th><th>Nearest asset</th><th>Required</th></tr></thead><tbody>${check.byRule
+      .map(
+        (b) => `<tr><td>${esc(b.rule.owner)}</td><td class="num">${b.rule.distance} m</td><td>${esc(b.rule.permit)}</td>
+          <td>${b.nearest ? `${esc(b.nearest.layer)}${ids(b.nearest.runKey)} at ${b.nearest.distance === 0 ? '0 m' : `${b.nearest.distance.toFixed(2)} m`}` : '<span class="muted">none nearby</span>'}</td>
+          <td>${b.required ? '<b>Yes</b>' : 'No'}</td></tr>`,
+      )
+      .join('')}</tbody></table></details>`;
+    return `<div class="permit-section"><h3>Permits</h3>${required}${unknown}${table}</div>`;
   }
 
   private row(r: ScheduleRow): string {

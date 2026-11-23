@@ -32,6 +32,12 @@ Working:
   - Unknown owner, type or RL is highlighted. Type over any value to correct it, or untick to leave a service off. Edits are remembered per drawing.
   - Map markers (S1, S2…) show where each RL applies, with a dashed line showing the gap for services that don't cross.
   - Layers can be marked **not a service** in the Services table (survey points, fences, contours…).
+- **Permits** (**Permit rules** in the toolbar): import your permit cheat sheet (.xlsx with Owner / Distance / Permit columns, anywhere on the sheet) or edit the rules in the app. Rules are stored in the browser only.
+  - A permit is required when a box is within the trigger distance (horizontally, inclusive) of any asset of that owner. Crossing or inside counts as 0 m.
+  - Every service counts, including overhead ones.
+  - Alternative owner names are separated by "/" (e.g. `MTM/Metro Trains Melbourne`), and known abbreviations match.
+  - Each box card shows the required permits. The schedule explains each trigger (owner, distance, rule, ID) and lists every rule with its nearest asset.
+  - Services of unknown owner within the largest trigger distance are flagged, because one could need a permit.
 - **Inspect**: click any utility to see its layer, object type, handle, block, length and levels, plus all its non-graphical data (see below).
 - **Utility metadata is kept** with every object:
   - **Block attributes by tag** (e.g. `OWNER`, `PIT_ID`, `RL_LID`), including invisible ones. They're attached to the symbol's geometry and labels, so clicking a pit shows them all.
