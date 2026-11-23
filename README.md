@@ -119,9 +119,11 @@ Benchmark: on a synthetic survey with 104,000 objects (`python3 scripts/make_str
 
 ## Roadmap
 
-1. ✅ Display DWG utility data on imagery, and draw excavation boxes
-2. Load several drawings at once (e.g. a separate BYDA response per owner)
-3. Map layers to utility owners and types (configurable)
-4. Permit rules: offset distances per owner, then the list of permits required
-5. ✅ A3 PDF markup at 1:300 with editable callouts, plus an overheads plan
-6. Methodology prompt and pre-filled permit documents (waiting on blank forms)
+1. ✅ Display DWG utility data on imagery, and draw work areas (rectangle, rotated, free-form)
+2. ✅ Map rotation
+3. ✅ Service register: owner, type and overhead per layer, unknowns highlighted
+4. ✅ Box schedule: services within 10 m, with RLs at crossings / closest points
+5. ✅ Permits from the cheat sheet
+6. ✅ A3 PDF markup at 1:300 with editable callouts, plus an overheads plan
+7. Methodology prompt and pre-filled permit documents (waiting on blank forms)
+8. Later: depths (surface levels), several drawings at once, saving and reopening a job
