@@ -19,6 +19,11 @@ Working:
   - Select a box to edit it: drag inside to move it, drag a corner to reshape it, click an edge to add a corner, and Alt+click a corner to remove it. Shapes whose edges cross are rejected.
   - The sidebar shows area, perimeter, extents, bearing, centre and every corner in MGA (with **Copy corners**).
 - **Rotate the map**: use the rotation box (type degrees, or ±15° buttons), **North up**, **Align to box** (puts the selected box's long side left to right), Alt+Shift+drag, or a two-finger twist. The north arrow always shows grid north.
+- **Service register** (**Services…** / **Review** in the Layers panel): each layer's service type, owner and overhead flag.
+  - Values come from object data where present (OWNER / SERVICE / QL attributes or `KEY=VALUE` XDATA), otherwise they're guessed from the layer name (e.g. `GAS-MULTINET` → Gas, Multinet Gas; `OH`, `OVERHEAD`, `AERIAL` → overhead).
+  - Unknowns are highlighted for you to fill in. Edits are remembered in the browser for any drawing using the same layer names.
+  - Owner abbreviations are recognised (MTM → Metro Trains Melbourne, UE → United Energy, SEW → South East Water…).
+  - Overhead services are drawn dashed.
 - **Inspect**: click any utility to see its layer, object type, handle, block, length and levels, plus all its non-graphical data (see below).
 - **Utility metadata is kept** with every object:
   - **Block attributes by tag** (e.g. `OWNER`, `PIT_ID`, `RL_LID`), including invisible ones. They're attached to the symbol's geometry and labels, so clicking a pit shows them all.

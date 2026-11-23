@@ -3,6 +3,7 @@ import { boxDimensions, nearbyByLayer } from '../analysis/geometry';
 import type { CadDrawing, CadFeature } from '../cad/types';
 import type { BoxTool } from '../map/boxTool';
 import type { UtilityLayers } from '../map/utilityLayer';
+import type { ServiceInfo } from '../services/register';
 
 export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -137,7 +138,7 @@ export function renderBoxList(el: HTMLElement, countEl: HTMLElement, tool: BoxTo
   }
 }
 
-export function renderFeatureInfo(el: HTMLElement, cad: CadFeature | null): void {
+export function renderFeatureInfo(el: HTMLElement, cad: CadFeature | null, info?: ServiceInfo): void {
   if (!cad) {
     el.className = 'muted';
     el.textContent = 'Click a utility on the map to inspect it.';
@@ -145,11 +146,22 @@ export function renderFeatureInfo(el: HTMLElement, cad: CadFeature | null): void
   }
   el.className = '';
   const meta = cad.meta;
-  const rows: [string, string][] = [
+  const unknown = '<span class="svc-unknown">Unknown: set in Services</span>';
+  const rows: [string, string][] = [];
+  if (info) {
+    rows.push(
+      ['Service', info.type ? esc(info.type) : unknown],
+      ['Owner', info.owner ? esc(info.owner) : unknown],
+      ['Overhead', info.overhead ? 'Yes' : 'No'],
+    );
+    if (info.ql) rows.push(['Quality', `QL${info.ql}`]);
+    if (info.description) rows.push(['Details', esc(info.description)]);
+  }
+  rows.push(
     ['Layer', `<span class="swatch" style="display:inline-block;background:${cad.color};margin-right:6px"></span>${esc(cad.layer)}`],
     ['Object', esc(cad.entityType)],
     ['Handle', `<span class="mono">${esc(meta?.insertHandle ?? cad.handle)}</span>`],
-  ];
+  );
   if (cad.block) rows.push(['Block', esc(cad.block)]);
   if (cad.kind === 'text') rows.push(['Text', esc(cad.text).replace(/\n/g, '<br>')], ['Height', `${fmt(cad.height)} m`]);
   if (cad.kind === 'line') {

@@ -11,6 +11,8 @@ import { BASEMAPS, type BasemapId, createBasemapLayer } from './map/basemaps';
 import { BoxTool, type DrawMode } from './map/boxTool';
 import { UtilityLayers } from './map/utilityLayer';
 import { boxDimensions } from './analysis/geometry';
+import { ServiceRegister } from './services/register';
+import { ServicesDialog } from './ui/servicesDialog';
 import { renderBoxList, renderDrawingInfo, renderFeatureInfo, renderLayerList } from './ui/panels';
 import proj4 from 'proj4';
 
@@ -56,6 +58,9 @@ function makeView(code: string, center?: number[], resolution?: number, rotation
 }
 
 const utilities = new UtilityLayers();
+const register = new ServiceRegister();
+utilities.setOverheadTest((layer) => register.isOverhead(layer));
+let inspected: CadFeature | null = null;
 const map = new Map({
   target: 'map',
   controls: defaultControls({ rotate: false, attributionOptions: { collapsible: true, collapsed: false } }).extend([
@@ -212,7 +217,9 @@ function showDrawing(d: CadDrawing) {
   renderDrawingInfo($('drawing-info'), d, warning);
   $('layer-count').textContent = String(d.layers.length);
   refreshLayers();
+  inspected = null;
   renderFeatureInfo($('feature-info'), null);
+  updateServiceNotice();
   renderBoxes();
   if (d.focusExtent) map.getView().fit(d.focusExtent, { padding: [40, 40, 40, 40], maxZoom: 21 });
 }
@@ -287,6 +294,33 @@ function renderBoxes() {
 }
 boxes.onChange(renderBoxes);
 
+// ---- service register ----
+const servicesDialog = new ServicesDialog(register, () => drawing);
+function updateServiceNotice() {
+  const el = $('svc-notice');
+  if (!drawing) {
+    el.hidden = true;
+    return;
+  }
+  const rows = register.summarise(drawing);
+  const n = rows.filter((r) => r.incomplete).length;
+  el.hidden = false;
+  el.classList.toggle('ok', n === 0);
+  el.innerHTML =
+    n > 0
+      ? `<span>⚠ ${n} layer${n === 1 ? '' : 's'} with unknown owner or service type</span><button class="btn small" data-open="incomplete">Review</button>`
+      : `<span>All ${rows.length} service layers identified</span><button class="btn small" data-open="all">Services…</button>`;
+  el.querySelector('button')!.addEventListener('click', (e) =>
+    servicesDialog.open((e.currentTarget as HTMLElement).dataset.open === 'incomplete'),
+  );
+}
+register.onChange(() => {
+  utilities.setOverheadTest((layer) => register.isOverhead(layer));
+  updateServiceNotice();
+  renderBoxes();
+  if (inspected) renderFeatureInfo($('feature-info'), inspected, register.resolve(inspected));
+});
+
 // ---- feature inspection ----
 map.on('singleclick', (e) => {
   if (boxes.currentMode !== 'none') return;
@@ -298,7 +332,8 @@ map.on('singleclick', (e) => {
       | undefined) ?? null;
   hit ??= utilities.hitTest(e.coordinate as [number, number], map.getView().getResolution() ?? 1);
   utilities.highlight(hit);
-  renderFeatureInfo($('feature-info'), hit);
+  inspected = hit;
+  renderFeatureInfo($('feature-info'), hit, hit ? register.resolve(hit) : undefined);
 });
 
 // ---- status bar ----
@@ -316,4 +351,4 @@ map.on('moveend', () => {
 });
 
 // Expose for debugging / automated tests.
-(window as unknown as Record<string, unknown>).__app = { map, boxes, utilities, getDrawing: () => drawing, openFile, renderBoxes };
+(window as unknown as Record<string, unknown>).__app = { map, boxes, utilities, register, getDrawing: () => drawing, openFile, renderBoxes };
