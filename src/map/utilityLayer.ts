@@ -67,6 +67,8 @@ export class UtilityLayers {
   private labelsOn = true;
   private styleCache = new Map<string, Style>();
   private isOverhead: (layer: string) => boolean = () => false;
+  /** Current map rotation (radians, clockwise), so labels can be kept upright. */
+  private viewRotation = 0;
 
   private index: SpatialGrid<IndexedFeature> | null = null;
   private texts: CadText[] = [];
@@ -216,6 +218,12 @@ export class UtilityLayers {
     return this.labelsOn;
   }
 
+  setViewRotation(rotation: number): void {
+    if (rotation === this.viewRotation) return;
+    this.viewRotation = rotation;
+    this.textLayer.changed();
+  }
+
   /** Overhead services are drawn dashed. */
   setOverheadTest(fn: (layer: string) => boolean): void {
     this.isOverhead = fn;
@@ -241,10 +249,7 @@ export class UtilityLayers {
       if (this.textSource.getFeatures().length) this.textSource.clear(true);
       return;
     }
-    let wanted = this.textIndex
-      .query(extent as BBox)
-      .filter((i) => this.textMaxRes[i] >= resolution && !this.hidden.has(this.texts[i].layer));
-    if (wanted.length > MAX_LABELS) wanted = wanted.sort((a, b) => this.textMaxRes[b] - this.textMaxRes[a]).slice(0, MAX_LABELS);
+    const wanted = this.labelIndices(extent, resolution, () => true);
     const want = new Set(wanted);
     const current = this.textSource.getFeatures();
     const toRemove = current.filter((f) => !want.has(f.get('idx') as number));
@@ -252,16 +257,46 @@ export class UtilityLayers {
     const toAdd: Feature[] = [];
     for (const i of wanted) {
       if (have.has(i)) continue;
-      let f = this.textFeatures.get(i);
-      if (!f) {
-        f = new Feature(new Point(this.texts[i].coord));
-        f.setProperties({ idx: i, cad: this.texts[i] }, true);
-        this.textFeatures.set(i, f);
-      }
-      toAdd.push(f);
+      toAdd.push(this.textFeature(i));
     }
     if (toRemove.length) this.textSource.removeFeatures(toRemove);
     if (toAdd.length) this.textSource.addFeatures(toAdd);
+  }
+
+  private textFeature(i: number): Feature {
+    let f = this.textFeatures.get(i);
+    if (!f) {
+      f = new Feature(new Point(this.texts[i].coord));
+      f.setProperties({ idx: i, cad: this.texts[i] }, true);
+      this.textFeatures.set(i, f);
+    }
+    return f;
+  }
+
+  /** Labels readable at this resolution within the extent, on visible layers passing `include`. */
+  private labelIndices(extent: Extent, resolution: number, include: (layer: string) => boolean): number[] {
+    if (!this.textIndex) return [];
+    let wanted = this.textIndex
+      .query(extent as BBox)
+      .filter((i) => this.textMaxRes[i] >= resolution && !this.hidden.has(this.texts[i].layer) && include(this.texts[i].layer));
+    if (wanted.length > MAX_LABELS) wanted = wanted.sort((a, b) => this.textMaxRes[b] - this.textMaxRes[a]).slice(0, MAX_LABELS);
+    return wanted;
+  }
+
+  /**
+   * Independent layers for rendering a printout: same data and styles as on screen (including
+   * hidden layers and labels), limited to CAD layers passing `include`.
+   */
+  createExportLayers(include: (layer: string) => boolean, extent: Extent, resolution: number, rotation = this.viewRotation): VectorLayer<VectorSource>[] {
+    const geometry = new VectorLayer({
+      source: this.geometrySource,
+      style: (f, res) => (include(f.get('layer') as string) ? this.groupStyle(f, res) : undefined),
+    });
+    const labels = new VectorSource();
+    if (this.labelsOn) labels.addFeatures(this.labelIndices(extent, resolution, include).map((i) => this.textFeature(i)));
+    // Printouts never show the on-screen selection highlight.
+    const text = new VectorLayer({ source: labels, style: (f, res) => this.textStyle(f, res, false, rotation) });
+    return [geometry, text];
   }
 
   /** The feature drawn nearest to `coord` within `tolerance` metres, respecting visibility. */
@@ -322,25 +357,36 @@ export class UtilityLayers {
     return s;
   }
 
-  private textStyle(f: FeatureLike, resolution: number): Style | undefined {
+  private textStyle(f: FeatureLike, resolution: number, allowHighlight = true, viewRotation = this.viewRotation): Style | undefined {
     const cad = f.get('cad') as CadText;
     if (this.hidden.has(cad.layer)) return undefined;
     const px = cad.height / resolution / CAP_HEIGHT_RATIO;
     if (px < MIN_LABEL_PX) return undefined;
-    const hl = cad === this.highlighted;
+    const hl = allowHighlight && cad === this.highlighted;
+    // Keep labels readable: if the text would appear upside down on screen (or on the sheet),
+    // turn it 180° and swap its alignment so it still occupies the same place.
+    let shown = -cad.rotation + viewRotation; // OpenLayers angles are clockwise
+    shown = Math.atan2(Math.sin(shown), Math.cos(shown));
+    const flip = Math.abs(shown) > Math.PI / 2 + 1e-9;
+    const hAlign = flip ? ({ left: 'right', right: 'left', center: 'center' } as const)[cad.hAlign] : cad.hAlign;
+    const vAlign = flip
+      ? ({ top: 'bottom', bottom: 'top', middle: 'middle', baseline: 'top' } as const)[cad.vAlign]
+      : cad.vAlign === 'baseline'
+        ? 'alphabetic'
+        : cad.vAlign;
     // Reuse the style while panning at the same zoom.
-    const cacheKey = `${px.toFixed(1)}|${hl}`;
+    const cacheKey = `${px.toFixed(1)}|${hl}|${flip}`;
     const feature = f as Feature;
     if (feature.get('styleKey') === cacheKey) return feature.get('style') as Style;
     const style = new Style({
       text: new Text({
         text: cad.text,
         font: `${px.toFixed(1)}px "Arial Narrow", Arial, sans-serif`,
-        rotation: -cad.rotation, // OpenLayers rotates clockwise; CAD is counter-clockwise
+        rotation: -cad.rotation + (flip ? Math.PI : 0), // OpenLayers rotates clockwise; CAD is counter-clockwise
         rotateWithView: true,
-        textAlign: cad.hAlign,
-        textBaseline: cad.vAlign === 'baseline' ? 'alphabetic' : cad.vAlign,
-        justify: cad.hAlign,
+        textAlign: hAlign,
+        textBaseline: vAlign,
+        justify: hAlign,
         fill: new Fill({ color: hl ? '#ffffff' : cad.color }),
         stroke: new Stroke({ color: 'rgba(0,0,0,0.85)', width: Math.max(2, px / 6) }),
         overflow: true,

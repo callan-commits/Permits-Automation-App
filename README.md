@@ -38,6 +38,15 @@ Working:
   - Alternative owner names are separated by "/" (e.g. `MTM/Metro Trains Melbourne`), and known abbreviations match.
   - Each box card shows the required permits. The schedule explains each trigger (owner, distance, rule, ID) and lists every rule with its nearest asset.
   - Services of unknown owner within the largest trigger distance are flagged, because one could need a permit.
+- **A3 printout at 1:300** (**A3 printout** on a box card): a PDF centred on the box, using the map's rotation, imagery and visible layers.
+  - **Editable callouts**: standard PDF callout annotations, like those made in Bluebeam or Acrobat. Each has owner and type, then "RL: ~45.100 QLB", with a coloured leader and an open arrow. There is one per crossing or closest point.
+  - Unknown owner, type or RL gets a yellow fill. Callouts are placed outside the work area without overlapping.
+  - The work area is an editable polygon.
+  - The page is calibrated, so PDF measuring tools read metres at 1:300.
+  - North arrow, scale bar and footer (source, datum, scale, date).
+  - Imagery is stored as JPEG and linework as PNG, so line colours stay exact.
+  - **Overheads plan**: a separate PDF with just the overhead services. The services plan leaves them out.
+  - Text labels stay upright at any map rotation.
 - **Inspect**: click any utility to see its layer, object type, handle, block, length and levels, plus all its non-graphical data (see below).
 - **Utility metadata is kept** with every object:
   - **Block attributes by tag** (e.g. `OWNER`, `PIT_ID`, `RL_LID`), including invisible ones. They're attached to the symbol's geometry and labels, so clicking a pit shows them all.
@@ -114,5 +123,5 @@ Benchmark: on a synthetic survey with 104,000 objects (`python3 scripts/make_str
 2. Load several drawings at once (e.g. a separate BYDA response per owner)
 3. Map layers to utility owners and types (configurable)
 4. Permit rules: offset distances per owner, then the list of permits required
-5. PDF markup of the box and nearby utilities in the standard format
-6. Pre-filled permit documents
+5. ✅ A3 PDF markup at 1:300 with editable callouts, plus an overheads plan
+6. Methodology prompt and pre-filled permit documents (waiting on blank forms)
