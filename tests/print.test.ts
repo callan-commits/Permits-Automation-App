@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFString } from 'pdf-lib';
-import { calloutLines, calloutSpecs, layoutCallouts, CALLOUT_FONT_SIZE } from '../src/print/callouts';
+import { calloutLines, calloutSpecs, countCrossings, countLeadersUnderBoxes, layoutCallouts, spreadInOrder, CALLOUT_FONT_SIZE } from '../src/print/callouts';
 import { buildPrintoutPdf } from '../src/print/pdf';
 import { calloutColour, rowsForPlan } from '../src/print/planRules';
 import { A3_LANDSCAPE_1_300, PT_PER_MM, extentOnSheet, frameFor, pixelToPage, printCentre, sheetAxes } from '../src/print/sheet';
@@ -99,33 +99,101 @@ describe('callout text', () => {
   });
 });
 
-describe('callout layout', () => {
+describe('callout layout (ring around the work area)', () => {
   const width = (t: string) => t.length * CALLOUT_FONT_SIZE * 0.5;
   const frame = { x: 0, y: 45, w: 1190, h: 796 };
   const area: XY[] = [[500, 350], [700, 350], [700, 500], [500, 500], [500, 350]];
-  const spec = (k: string, at: XY) => ({ key: k, lines: ['Telstra Comms', 'RL: ~45.100 QLB'], anchor: at, color: [1, 0, 0] as [number, number, number], missingRl: false });
-  it('places many callouts without overlaps, inside the frame and outside the work area', () => {
-    const anchors: XY[] = [];
-    for (let i = 0; i < 14; i++) anchors.push([500 + (i % 7) * 33, i < 7 ? 350 : 500]);
-    const placed = layoutCallouts(anchors.map((a, i) => spec(`s${i}`, a)), frame, area, width);
-    expect(placed).toHaveLength(14);
-    for (const p of placed) {
-      expect(p.box.x).toBeGreaterThanOrEqual(frame.x);
-      expect(p.box.y).toBeGreaterThanOrEqual(frame.y);
-      expect(p.box.x + p.box.w).toBeLessThanOrEqual(frame.x + frame.w);
-      expect(p.box.y + p.box.h).toBeLessThanOrEqual(frame.y + frame.h);
-      expect(p.crowded).toBe(false);
-      // leader ends on the side of the box facing the anchor
-      expect(p.attach[1]).toBeCloseTo(p.box.y + p.box.h / 2, 9);
-      expect([p.box.x, p.box.x + p.box.w]).toContain(p.attach[0]);
-    }
+  const spec = (k: string, at: XY) => ({ key: k, lines: ['[insert service]', 'RL: ~45.100 QLB'], anchor: at, color: [1, 0, 0] as [number, number, number], missingRl: false });
+  const noOverlaps = (placed: ReturnType<typeof layoutCallouts>) => {
     for (let i = 0; i < placed.length; i++) {
       for (let j = i + 1; j < placed.length; j++) {
         const a = placed[i].box;
         const b = placed[j].box;
-        expect(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h).toBe(false);
+        if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) return false;
       }
     }
+    return true;
+  };
+  const insideFrame = (p: ReturnType<typeof layoutCallouts>[number]) =>
+    p.box.x >= frame.x && p.box.y >= frame.y && p.box.x + p.box.w <= frame.x + frame.w && p.box.y + p.box.h <= frame.y + frame.h;
+  const clearOfArea = (p: ReturnType<typeof layoutCallouts>[number]) => p.box.x > 700 || p.box.x + p.box.w < 500 || p.box.y > 500 || p.box.y + p.box.h < 350;
+
+  it('spreads points in order with minimum gaps, moving them as little as possible', () => {
+    expect(spreadInOrder([0, 10, 20], [5, 5])).toEqual([0, 10, 20]); // already fine
+    expect(spreadInOrder([10, 10, 10], [4, 4])).toEqual([6, 10, 14]); // pushed apart symmetrically
+    const x = spreadInOrder([0, 1, 2, 50], [10, 10, 10]);
+    expect(x[1] - x[0]).toBeCloseTo(10);
+    expect(x[2] - x[1]).toBeCloseTo(10);
+    expect(x[3]).toBe(50);
+  });
+
+  it('typical case: services crossing the box edges get one tidy ring with no crossing leaders', () => {
+    // 14 crossing points along the top and bottom edges of the work area
+    const anchors: XY[] = [];
+    for (let i = 0; i < 7; i++) anchors.push([510 + i * 30, 350], [510 + i * 30, 500]);
+    const placed = layoutCallouts(anchors.map((a, i) => spec(`s${i}`, a)), frame, area, width);
+    expect(placed).toHaveLength(14);
+    expect(noOverlaps(placed)).toBe(true);
+    expect(placed.every(insideFrame)).toBe(true);
+    expect(placed.every(clearOfArea)).toBe(true);
+    expect(placed.every((p) => !p.crowded)).toBe(true);
+    expect(countCrossings(placed)).toBe(0);
+    // leader ends at the middle of a side of its box
+    for (const p of placed) {
+      const { x, y, w, h } = p.box;
+      const mids: XY[] = [[x, y + h / 2], [x + w, y + h / 2], [x + w / 2, y], [x + w / 2, y + h]];
+      expect(mids.some((m) => Math.hypot(m[0] - p.attach[0], m[1] - p.attach[1]) < 1e-9)).toBe(true);
+    }
+  });
+
+  it('keeps callouts in the same clockwise order as the points they label', () => {
+    const anchors: XY[] = [[600, 350], [700, 425], [600, 500], [500, 425], [650, 350], [700, 480]];
+    const placed = layoutCallouts(anchors.map((a, i) => spec(`s${i}`, a)), frame, area, width);
+    const angle = (p: XY) => Math.atan2(p[1] - 425, p[0] - 600);
+    const byAnchor = [...placed].sort((a, b) => angle(a.anchor) - angle(b.anchor)).map((p) => p.key);
+    const centre = (p: (typeof placed)[number]): XY => [p.box.x + p.box.w / 2, p.box.y + p.box.h / 2];
+    const byBox = [...placed].sort((a, b) => angle(centre(a)) - angle(centre(b))).map((p) => p.key);
+    // same cyclic order
+    const rot = byBox.indexOf(byAnchor[0]);
+    expect([...byBox.slice(rot), ...byBox.slice(0, rot)]).toEqual(byAnchor);
+    expect(countCrossings(placed)).toBe(0);
+  });
+
+  it('busy realistic case: 45 crossings and nearby services, spread round the sheet with no crossings', () => {
+    let seed = 3;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const anchors: XY[] = [];
+    // crossing points on the box outline...
+    for (let i = 0; i < 25; i++) {
+      const t = rnd();
+      const side = Math.floor(rnd() * 4);
+      anchors.push(side === 0 ? [500 + t * 200, 350] : side === 1 ? [700, 350 + t * 150] : side === 2 ? [500 + t * 200, 500] : [500, 350 + t * 150]);
+    }
+    // ...and closest points of services up to 10 m (94 pt) outside it
+    for (let i = 0; i < 20; i++) {
+      const ang = rnd() * 2 * Math.PI;
+      const d = 10 + rnd() * 84;
+      anchors.push([600 + Math.cos(ang) * (100 + d), 425 + Math.sin(ang) * (75 + d)]);
+    }
+    const placed = layoutCallouts(anchors.map((a, i) => spec(`s${i}`, a)), frame, area, width);
+    expect(placed).toHaveLength(45);
+    expect(noOverlaps(placed)).toBe(true);
+    expect(placed.every(insideFrame)).toBe(true);
+    expect(placed.every(clearOfArea)).toBe(true);
+    expect(countCrossings(placed)).toBe(0);
+    expect(countLeadersUnderBoxes(placed)).toBeLessThanOrEqual(8);
+  });
+
+  it('extreme case: 45 random points packed in and around the box still never overlap and stay on the sheet', () => {
+    let seed = 3;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const anchors: XY[] = [];
+    for (let i = 0; i < 45; i++) anchors.push([470 + rnd() * 260, 320 + rnd() * 210]);
+    const placed = layoutCallouts(anchors.map((a, i) => spec(`s${i}`, a)), frame, area, width);
+    expect(placed).toHaveLength(45);
+    expect(noOverlaps(placed)).toBe(true);
+    expect(placed.every(insideFrame)).toBe(true);
+    expect(placed.every(clearOfArea)).toBe(true);
   });
 });
 

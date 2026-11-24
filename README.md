@@ -1,6 +1,6 @@
 # Calvillo
 
-*Utility markup & permits for rail ground-penetration works. Prototype; the repository is named Permits-Automation-App.*
+*Prototype app for preparing ground-penetration permits on rail jobs. The repository is named Permits-Automation-App.*
 
 An app intended to automate the civil engineering ground penetration permit process on rail jobs.
 
@@ -11,7 +11,7 @@ An app intended to automate the civil engineering ground penetration permit proc
 Working:
 
 - **Open utility survey drawings**: `.dwg` (via [LibreDWG](https://www.gnu.org/software/libredwg/) compiled to WebAssembly) and ASCII `.dxf`. Open from the toolbar or drag onto the map.
-- **Display over aerial imagery**: the map runs in the survey's own grid (MGA2020 Zone 54/55/56, or MGA94 for older surveys). Free imagery (Esri World Imagery) or OpenStreetMap is reprojected to fit. Drawing coordinates are never altered.
+- **Display over aerial imagery**: the map runs in MGA2020 Zone 55 (EPSG:7855), the only grid the app uses; there is no grid selector. Free imagery (Esri World Imagery) or OpenStreetMap is reprojected to fit. Drawing coordinates are never altered.
 - **Layers panel**: colours follow the CAD layer colours, with toggles, a filter and a feature count. Layers that are off or frozen in the drawing start hidden.
 - **CAD objects drawn**: lines, polylines (including arcs and bulges, and 3D polylines with levels), arcs, circles, ellipses, splines, points, text/MTEXT, block inserts with attributes (nested), hatches, solids and dimensions.
 - **Draw work areas ("boxes")**:
@@ -41,8 +41,8 @@ Working:
   - Each box card shows the required permits. The schedule explains each trigger (owner, distance, rule, ID) and lists every rule with its nearest asset.
   - Services of unknown owner within the largest trigger distance are flagged, because one could need a permit.
 - **A3 printout at 1:300** (**A3 printout** on a box card): a PDF centred on the box, using the map's rotation, imagery and visible layers.
-  - **Editable callouts**: standard PDF callout annotations, like those made in Bluebeam or Acrobat. Each has owner and type, then "RL: ~45.100 QLB", with a coloured leader and an open arrow. There is one per crossing or closest point.
-  - Unknown owner, type or RL gets a yellow fill. Callouts are placed outside the work area without overlapping.
+  - **Editable callouts**: standard PDF callout annotations, like those made in Bluebeam or Acrobat. There is one per crossing or closest point, with a coloured leader and an open arrow. Every callout is yellow and reads "[insert service]" then "RL: ~45.100 QLB" (or "RL: [insert RL]"), so the engineer fills in and checks each service.
+  - **Callout layout**: callouts sit on a ring (an ellipse) around the work area, in the same clock order as their arrow tips, so leaders don't cross. Busy areas first enlarge the ring, then use a second ring out to the sheet edge. A final pass swaps or nudges callouts to remove any remaining crossings, and any leader running under another box. Boxes never overlap each other, the work area or another arrow tip.
   - The work area is an editable polygon.
   - The page is calibrated, so PDF measuring tools read metres at 1:300.
   - North arrow, scale bar and footer (source, datum, scale, date).

@@ -23,12 +23,10 @@ body { display: flex; flex-direction: column; }
   background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap;
 }
 .brand { display: flex; align-items: center; gap: 10px; margin-right: 10px; color: var(--text); text-decoration: none; }
-.brand-mark { display: inline-flex; width: 30px; height: 30px; filter: drop-shadow(0 2px 6px rgba(255, 204, 0, 0.25)); transition: transform 0.2s ease; }
+.brand-mark { display: inline-flex; width: 38px; height: 38px; filter: drop-shadow(0 2px 6px rgba(255, 204, 0, 0.25)); transition: transform 0.2s ease; }
 .brand-mark svg { width: 100%; height: 100%; }
 .brand:hover .brand-mark { transform: rotate(-6deg) scale(1.05); }
-.brand-text { display: flex; flex-direction: column; gap: 3px; line-height: 1; }
-.brand-name { font-size: 19px; font-weight: 750; letter-spacing: 0.01em; }
-.brand-sub { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.brand-name { font-size: 26px; font-weight: 750; letter-spacing: 0.01em; line-height: 38px; }
 .tag { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); border: 1px solid rgba(255, 204, 0, 0.55); background: rgba(255, 204, 0, 0.08); border-radius: 999px; padding: 2px 7px; align-self: center; }
 .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
 .spacer { flex: 1; }
