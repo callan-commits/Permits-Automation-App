@@ -117,3 +117,14 @@ select { max-width: 270px; }
 .meta-table th { color: var(--muted); font-weight: 500; width: 40%; }
 .meta-raw { margin-top: 8px; }
 .meta-raw summary { cursor: pointer; color: var(--muted); }
+
+.rotate-ctl {
+  position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 4px; padding: 4px;
+  background: rgba(29, 33, 40, 0.92); border: 1px solid var(--border); border-radius: 6px;
+}
+.rot-field { display: inline-flex; align-items: center; gap: 2px; color: var(--muted); }
+.rot-field input { width: 58px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 3px 5px; font: inherit; text-align: right; }
+.ol-rotate { top: 52px; right: 10px; }
+.ol-rotate button { width: 34px !important; height: 34px !important; border-radius: 50% !important; }
+.north-arrow { display: inline-flex; flex-direction: column; align-items: center; line-height: 0.95; font-size: 11px; font-weight: 700; }
+.north-arrow b { font-size: 14px; color: var(--accent); }

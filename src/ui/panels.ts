@@ -78,7 +78,7 @@ export function renderBoxList(el: HTMLElement, countEl: HTMLElement, tool: BoxTo
       Math.max(...ys) + NEARBY_RADIUS,
     ]);
     const nearby = drawing ? nearbyByLayer(box.ring, candidates, NEARBY_RADIUS, utilities.hiddenLayers()) : [];
-    const corners = box.ring.slice(0, 4);
+    const corners = box.ring.slice(0, -1);
     card.innerHTML = `
       <div class="box-head">
         <input type="text" value="${esc(box.name)}" aria-label="Box name" />
@@ -86,12 +86,13 @@ export function renderBoxList(el: HTMLElement, countEl: HTMLElement, tool: BoxTo
         <button class="btn small danger" data-act="delete" title="Delete box (Del)">✕</button>
       </div>
       <dl class="kv">
-        <dt>Size</dt><dd>${fmt(d.length)} m × ${fmt(d.width)} m (${fmt(d.area, 1)} m²)</dd>
+        <dt>Area</dt><dd>${fmt(d.area, 1)} m² · perimeter ${fmt(d.perimeter, 1)} m</dd>
+        <dt>Extents</dt><dd>${fmt(d.length)} m × ${fmt(d.width)} m</dd>
         <dt>Bearing</dt><dd>${fmt(d.bearing, 1)}° (long side, grid)</dd>
         <dt>Centre</dt><dd class="mono">E ${fmt(d.centre[0], 2)}<br>N ${fmt(d.centre[1], 2)}</dd>
       </dl>
       <details>
-        <summary>Corners</summary>
+        <summary>Corners (${corners.length})</summary>
         <table class="mono"><tr><th>#</th><th class="num">Easting</th><th class="num">Northing</th></tr>
         ${corners.map((c, i) => `<tr><td>${i + 1}</td><td class="num">${fmt(c[0], 3)}</td><td class="num">${fmt(c[1], 3)}</td></tr>`).join('')}
         </table>
@@ -114,6 +115,9 @@ export function renderBoxList(el: HTMLElement, countEl: HTMLElement, tool: BoxTo
       </details>
       <div class="box-actions">
         <button class="btn small" data-act="copy">Copy corners</button>
+      </div>
+      ${box.id === selected ? '<div class="muted" style="margin-top:6px">Drag the box to move it · drag a corner to reshape · click an edge to add a corner · Alt+click a corner to remove it</div>' : ''}
+      <div>
       </div>`;
     card.addEventListener('click', (e) => {
       const act = (e.target as HTMLElement).closest('[data-act]')?.getAttribute('data-act');
