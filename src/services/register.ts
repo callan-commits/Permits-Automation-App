@@ -37,6 +37,8 @@ export interface LayerSetting {
   type?: string;
   owner?: string;
   overhead?: boolean;
+  /** True when the user says this layer is not a service (survey points, fences, contours...). */
+  ignore?: boolean;
 }
 
 // ---------- text matching ----------
@@ -204,8 +206,9 @@ export interface LayerSummary {
   owner: string | null;
   overhead: boolean;
   source: { type: InfoSource; owner: InfoSource; overhead: InfoSource };
-  /** True when type or owner can't be determined for at least some objects. */
+  /** True when type or owner can't be determined for at least some objects (never for ignored layers). */
   incomplete: boolean;
+  ignored: boolean;
 }
 
 export class ServiceRegister {
@@ -235,7 +238,7 @@ export class ServiceRegister {
     const next: LayerSetting = { ...this.settings[layer], ...patch };
     for (const k of Object.keys(next) as (keyof LayerSetting)[]) {
       const v = next[k];
-      if (v === undefined || v === '') delete next[k];
+      if (v === undefined || v === '' || (k === 'ignore' && v === false)) delete next[k];
     }
     if (next.owner) next.owner = normaliseOwner(next.owner);
     if (Object.keys(next).length) this.settings[layer] = next;
@@ -248,6 +251,11 @@ export class ServiceRegister {
     delete this.settings[layer];
     this.save();
     this.listeners.forEach((fn) => fn());
+  }
+
+  /** False when the user has marked the layer as not a service. */
+  isService(layer: string): boolean {
+    return !this.settings[layer]?.ignore;
   }
 
   isOverhead(layer: string): boolean {
@@ -336,7 +344,8 @@ export class ServiceRegister {
           type: setting.type ? 'layer-edit' : dataType ? 'data' : guess.type ? 'layer-name' : type ? 'owner' : 'none',
           overhead: setting.overhead !== undefined ? 'layer-edit' : guess.overhead ? 'layer-name' : 'none',
         },
-        incomplete: s.unresolved,
+        incomplete: s.unresolved && !setting.ignore,
+        ignored: Boolean(setting.ignore),
       });
     }
     return rows;

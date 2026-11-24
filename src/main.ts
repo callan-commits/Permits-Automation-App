@@ -11,7 +11,11 @@ import { BASEMAPS, type BasemapId, createBasemapLayer } from './map/basemaps';
 import { BoxTool, type DrawMode } from './map/boxTool';
 import { UtilityLayers } from './map/utilityLayer';
 import { boxDimensions } from './analysis/geometry';
+import { ScheduleEngine } from './analysis/schedule';
+import { ScheduleLayer } from './map/scheduleLayer';
 import { ServiceRegister } from './services/register';
+import { ScheduleEdits, type ScheduleRow, scheduleRows } from './services/scheduleModel';
+import { ScheduleDialog } from './ui/scheduleDialog';
 import { ServicesDialog } from './ui/servicesDialog';
 import { renderBoxList, renderDrawingInfo, renderFeatureInfo, renderLayerList } from './ui/panels';
 import proj4 from 'proj4';
@@ -61,6 +65,9 @@ const utilities = new UtilityLayers();
 const register = new ServiceRegister();
 utilities.setOverheadTest((layer) => register.isOverhead(layer));
 let inspected: CadFeature | null = null;
+let engine: ScheduleEngine | null = null;
+const edits = new ScheduleEdits();
+const scheduleLayer = new ScheduleLayer();
 const map = new Map({
   target: 'map',
   controls: defaultControls({ rotate: false, attributionOptions: { collapsible: true, collapsed: false } }).extend([
@@ -69,7 +76,7 @@ const map = new Map({
     new Rotate({ autoHide: false, label: northArrow(), tipLabel: 'Grid north (click for north up)' }),
   ]),
   view: makeView(crsCode),
-  layers: [utilities.geometryLayer, utilities.textLayer, utilities.highlightLayer],
+  layers: [utilities.geometryLayer, utilities.textLayer, utilities.highlightLayer, scheduleLayer.layer],
 });
 const boxes = new BoxTool(map, (m) => toast(m, true));
 
@@ -213,6 +220,8 @@ async function openFile(name: string, buffer: ArrayBuffer) {
 function showDrawing(d: CadDrawing) {
   drawing = d;
   utilities.setDrawing(d);
+  engine = new ScheduleEngine(d);
+  edits.useDrawing(`${d.fileName}|${d.features.length}`);
   const warning = checkExtentLooksLikeMga(d.focusExtent);
   renderDrawingInfo($('drawing-info'), d, warning);
   $('layer-count').textContent = String(d.layers.length);
@@ -289,10 +298,35 @@ $('layer-list').addEventListener('change', () => renderBoxes());
 $<HTMLInputElement>('labels-toggle').addEventListener('change', (e) => utilities.setLabelsVisible((e.target as HTMLInputElement).checked));
 
 // ---- boxes panel ----
+// ---- schedules ----
+function rowsForRing(ring: [number, number][]): ScheduleRow[] | null {
+  return engine ? scheduleRows(engine, register, edits, ring) : null;
+}
+const scheduleDialog = new ScheduleDialog(
+  edits,
+  (boxId) => {
+    const box = boxes.boxes().find((b) => b.id === boxId);
+    const rows = box ? rowsForRing(box.ring) : null;
+    return box && rows ? { name: box.name, rows } : null;
+  },
+  (row) => {
+    // Show the service on the map: highlight it and zoom so it and the box are both visible.
+    const f = row.entry.run.primary;
+    utilities.highlight(f);
+    inspected = f;
+    renderFeatureInfo($('feature-info'), f, row.info);
+    map.getView().animate({ center: row.entry.points[0].at, duration: 250 });
+  },
+);
 function renderBoxes() {
-  renderBoxList($('box-list'), $('box-count'), boxes, drawing, utilities, toast);
+  renderBoxList($('box-list'), $('box-count'), boxes, rowsForRing, (id) => scheduleDialog.open(id), toast);
+  const list = boxes.boxes();
+  const shown = list.find((b) => b.id === boxes.selectedId) ?? (list.length === 1 ? list[0] : undefined);
+  scheduleLayer.show(shown ? rowsForRing(shown.ring) : null);
+  scheduleDialog.refresh();
 }
 boxes.onChange(renderBoxes);
+edits.onChange(renderBoxes);
 
 // ---- service register ----
 const servicesDialog = new ServicesDialog(register, () => drawing);

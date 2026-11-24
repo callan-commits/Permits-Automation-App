@@ -154,3 +154,11 @@ select { max-width: 270px; }
 .svc-notice.ok { background: transparent; border-color: var(--border); color: var(--muted); }
 .svc-notice span { flex: 1; }
 .svc-unknown { color: #ffd84d; font-weight: 600; }
+.svc-table tr.ignored td { opacity: 0.6; }
+.card-sched { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.card-sched td { padding: 2px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.card-sched td:nth-child(2) { width: 100%; }
+.sched-table td.num, .sched-table th.num { text-align: right; white-space: nowrap; }
+.sched-table .sch-rl { min-width: 120px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.schedule-dialog { width: min(1250px, 96vw); }
+.card-sched td.num { white-space: nowrap; }
