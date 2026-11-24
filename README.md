@@ -1,4 +1,6 @@
-# Permits-Automation-App
+# Calvillo
+
+*Utility markup & permits for rail ground-penetration works. Prototype; the repository is named Permits-Automation-App.*
 
 An app intended to automate the civil engineering ground penetration permit process on rail jobs.
 

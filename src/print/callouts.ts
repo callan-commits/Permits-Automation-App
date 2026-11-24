@@ -1,10 +1,12 @@
 /**
  * Callout content and placement for printouts (page coordinates, pt).
  *
- * Content follows the existing markup convention:
- *   line 1: owner and service type (and size/description when known), "Unknown" where not known
- *   line 2: "RL: ~32.088 QLB" ("~" = not QL-A; one callout per crossing / closest point)
- * Callouts with anything unknown get a yellow fill so they stand out for the user to complete.
+ * Content:
+ *   line 1: "[insert service]" - always left for the engineer to fill in, so every service is
+ *           identified by a person (due diligence), even where the survey data names it
+ *   line 2: "RL: ~32.088 QLB" ("~" = not QL-A; one callout per crossing / closest point),
+ *           or "RL: [insert RL]" where the survey has no level
+ * Every callout has a yellow fill: all of them need checking and completing.
  */
 import type { XY } from '../cad/types';
 import type { ScheduleRow } from '../services/scheduleModel';
@@ -17,7 +19,8 @@ export interface CalloutSpec {
   anchor: XY;
   /** Leader/border colour, 0-1 RGB. */
   color: [number, number, number];
-  needsInput: boolean;
+  /** No RL was found for this point (the callout says "[insert RL]"). */
+  missingRl: boolean;
 }
 
 export interface Rect {
@@ -39,21 +42,16 @@ export interface PlacedCallout extends CalloutSpec {
 export const CALLOUT_FONT_SIZE = 10;
 export const CALLOUT_LEADING = 12;
 export const CALLOUT_PAD = 4;
+/** Placeholder text the engineer replaces in their PDF editor. */
+export const INSERT_SERVICE = '[insert service]';
+export const INSERT_RL = '[insert RL]';
 const KNEE = 12;
 
 /** Callout text lines for one RL point of a schedule row. */
 export function calloutLines(row: ScheduleRow, pointIndex: number): string[] {
-  const i = row.info;
-  // Don't repeat the type when the owner's name already says it ("Multinet Gas", "Melbourne Water").
-  const words = (t: string) => t.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-  const ownerSaysType = Boolean(i.owner && i.type && words(i.type).every((w) => words(i.owner!).includes(w)));
-  const first =
-    !i.owner && !i.type
-      ? 'Unknown'
-      : [i.owner ?? 'Unknown', ownerSaysType ? null : (i.type ?? 'Unknown service'), i.description].filter(Boolean).join(' ');
-  const ql = i.ql ? ` QL${i.ql}` : '';
+  const ql = row.info.ql ? ` QL${row.info.ql}` : '';
   const rl = row.rls[pointIndex]?.text ?? null;
-  return [first, rl ? `RL: ${rl}${ql}` : `RL: unknown${ql}`];
+  return [INSERT_SERVICE, `RL: ${rl ?? INSERT_RL}${ql}`];
 }
 
 /** Callouts for the rows (one per RL point), anchors converted to page points. */
@@ -71,7 +69,7 @@ export function calloutSpecs(rows: ScheduleRow[], toPage: (ground: XY) => XY, co
         lines,
         anchor: toPage(p.at),
         color,
-        needsInput: row.needs.type || row.needs.owner || p.text === null,
+        missingRl: p.text === null,
       });
     });
   }
