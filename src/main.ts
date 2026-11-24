@@ -16,6 +16,9 @@ import { ScheduleLayer } from './map/scheduleLayer';
 import { ServiceRegister } from './services/register';
 import { ScheduleEdits, type ScheduleRow, scheduleRows } from './services/scheduleModel';
 import { ScheduleDialog } from './ui/scheduleDialog';
+import { checkPermits } from './permits/evaluate';
+import { PermitRules } from './permits/rules';
+import { RulesDialog } from './ui/rulesDialog';
 import { ServicesDialog } from './ui/servicesDialog';
 import { renderBoxList, renderDrawingInfo, renderFeatureInfo, renderLayerList } from './ui/panels';
 import proj4 from 'proj4';
@@ -67,6 +70,7 @@ utilities.setOverheadTest((layer) => register.isOverhead(layer));
 let inspected: CadFeature | null = null;
 let engine: ScheduleEngine | null = null;
 const edits = new ScheduleEdits();
+const rules = new PermitRules();
 const scheduleLayer = new ScheduleLayer();
 const map = new Map({
   target: 'map',
@@ -302,12 +306,17 @@ $<HTMLInputElement>('labels-toggle').addEventListener('change', (e) => utilities
 function rowsForRing(ring: [number, number][]): ScheduleRow[] | null {
   return engine ? scheduleRows(engine, register, edits, ring) : null;
 }
+function permitsForRing(ring: [number, number][]) {
+  return engine && rules.all().length ? checkPermits(engine, register, edits, ring, rules.all()) : null;
+}
+const rulesDialog = new RulesDialog(rules, toast);
+$('open-rules').addEventListener('click', () => rulesDialog.open());
 const scheduleDialog = new ScheduleDialog(
   edits,
   (boxId) => {
     const box = boxes.boxes().find((b) => b.id === boxId);
     const rows = box ? rowsForRing(box.ring) : null;
-    return box && rows ? { name: box.name, rows } : null;
+    return box && rows ? { name: box.name, rows, permits: permitsForRing(box.ring), ruleCount: rules.all().length } : null;
   },
   (row) => {
     // Show the service on the map: highlight it and zoom so it and the box are both visible.
@@ -319,7 +328,17 @@ const scheduleDialog = new ScheduleDialog(
   },
 );
 function renderBoxes() {
-  renderBoxList($('box-list'), $('box-count'), boxes, rowsForRing, (id) => scheduleDialog.open(id), toast);
+  renderBoxList(
+    $('box-list'),
+    $('box-count'),
+    boxes,
+    rowsForRing,
+    permitsForRing,
+    rules.all().length,
+    (id) => scheduleDialog.open(id),
+    () => rulesDialog.open(),
+    toast,
+  );
   const list = boxes.boxes();
   const shown = list.find((b) => b.id === boxes.selectedId) ?? (list.length === 1 ? list[0] : undefined);
   scheduleLayer.show(shown ? rowsForRing(shown.ring) : null);
@@ -327,6 +346,7 @@ function renderBoxes() {
 }
 boxes.onChange(renderBoxes);
 edits.onChange(renderBoxes);
+rules.onChange(renderBoxes);
 
 // ---- service register ----
 const servicesDialog = new ServicesDialog(register, () => drawing);
@@ -385,4 +405,4 @@ map.on('moveend', () => {
 });
 
 // Expose for debugging / automated tests.
-(window as unknown as Record<string, unknown>).__app = { map, boxes, utilities, register, getDrawing: () => drawing, openFile, renderBoxes };
+(window as unknown as Record<string, unknown>).__app = { map, boxes, utilities, register, rules, getDrawing: () => drawing, openFile, renderBoxes };

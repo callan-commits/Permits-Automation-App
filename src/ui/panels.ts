@@ -6,6 +6,7 @@ import type { CadDrawing, CadFeature } from '../cad/types';
 import type { BoxTool } from '../map/boxTool';
 import type { UtilityLayers } from '../map/utilityLayer';
 import type { ServiceInfo } from '../services/register';
+import type { PermitCheck } from '../permits/evaluate';
 
 export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -63,7 +64,10 @@ export function renderBoxList(
   countEl: HTMLElement,
   tool: BoxTool,
   rowsFor: (ring: [number, number][]) => ScheduleRow[] | null,
+  permitsFor: (ring: [number, number][]) => PermitCheck | null,
+  ruleCount: number,
   onOpenSchedule: (boxId: number) => void,
+  onOpenRules: () => void,
   toast: (m: string) => void,
 ): void {
   const boxes = tool.boxes();
@@ -82,6 +86,7 @@ export function renderBoxList(
     card.className = `box-card${box.id === selected ? ' selected' : ''}`;
     const rows = rowsFor(box.ring)?.filter((r) => !r.excluded) ?? null;
     const needing = rows?.filter((r) => r.needs.type || r.needs.owner || r.needs.rl).length ?? 0;
+    const permits = rows ? permitsFor(box.ring) : null;
     const corners = box.ring.slice(0, -1);
     card.innerHTML = `
       <div class="box-head">
@@ -101,6 +106,7 @@ export function renderBoxList(
         ${corners.map((c, i) => `<tr><td>${i + 1}</td><td class="num">${fmt(c[0], 3)}</td><td class="num">${fmt(c[1], 3)}</td></tr>`).join('')}
         </table>
       </details>
+      ${rows ? permitSummary(permits, ruleCount) : ''}
       <details ${rows?.length ? 'open' : ''}>
         <summary>Services within ${SCHEDULE_RADIUS} m (${rows?.length ?? 0})${needing ? ` · <span class="svc-unknown">${needing} need input</span>` : ''}</summary>
         ${
@@ -133,6 +139,7 @@ export function renderBoxList(
       const act = (e.target as HTMLElement).closest('[data-act]')?.getAttribute('data-act');
       if (act === 'delete') tool.remove(box.id);
       else if (act === 'schedule') onOpenSchedule(box.id);
+      else if (act === 'rules') onOpenRules();
       else if (act === 'zoom') tool.zoomTo(box.id);
       else if (act === 'copy') {
         const text = ['Corner\tEasting\tNorthing', ...corners.map((c, i) => `${i + 1}\t${c[0].toFixed(3)}\t${c[1].toFixed(3)}`)].join('\n');
@@ -146,6 +153,24 @@ export function renderBoxList(
     input.addEventListener('change', () => tool.rename(box.id, input.value.trim()));
     el.appendChild(card);
   }
+}
+
+function permitSummary(check: PermitCheck | null, ruleCount: number): string {
+  if (!ruleCount) {
+    return `<div class="permit-box none">No permit rules loaded. <button class="btn small" data-act="rules">Import cheat sheet</button></div>`;
+  }
+  if (!check) return '';
+  const chips = check.required.map((p) => `<span class="permit-chip" title="${esc(permitReason(p.triggers))}">${esc(p.permit)}</span>`).join('');
+  const unknown = check.unknownOwners.length
+    ? `<div class="svc-unknown" style="margin-top:4px">⚠ ${check.unknownOwners.length} service${check.unknownOwners.length === 1 ? '' : 's'} of unknown owner nearby: a permit may be needed. Fill in the owner in the schedule.</div>`
+    : '';
+  return `<div class="permit-box"><b>Permits:</b> ${chips || '<span class="muted">none required</span>'}${unknown}</div>`;
+}
+
+export function permitReason(triggers: PermitCheck['required'][number]['triggers']): string {
+  return triggers
+    .map((t) => `${t.owner}${t.type ? ` ${t.type}` : ''} ${t.distance === 0 ? 'in/crossing the box' : `${fmt(t.distance)} m away`} (within ${t.rule.distance} m)`)
+    .join('; ');
 }
 
 export function renderFeatureInfo(el: HTMLElement, cad: CadFeature | null, info?: ServiceInfo): void {

@@ -162,3 +162,13 @@ select { max-width: 270px; }
 .sched-table .sch-rl { min-width: 120px; font-family: ui-monospace, Menlo, Consolas, monospace; }
 .schedule-dialog { width: min(1250px, 96vw); }
 .card-sched td.num { white-space: nowrap; }
+.permit-box { margin: 8px 0 2px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 5px; background: rgba(255, 255, 255, 0.03); }
+.permit-box.none { color: var(--muted); }
+.permit-chip { display: inline-block; margin: 0 4px 2px 0; padding: 1px 8px; border-radius: 10px; background: #ff6b6b; color: #1a1a1a; font-weight: 700; }
+.rules-actions { display: flex; gap: 8px; align-items: center; margin: 0 16px 10px; flex-wrap: wrap; }
+.rules-msg { color: var(--muted); }
+.rules-dialog { width: min(760px, 94vw); }
+.permit-section { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.03); }
+.permit-section h3 { margin: 0 0 6px; font-size: 13px; }
+.permit-section ul { margin: 4px 0; padding-left: 18px; }
+.permit-section .svc-table td, .permit-section .svc-table th { padding: 3px 6px; }
