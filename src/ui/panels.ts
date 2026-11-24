@@ -68,6 +68,7 @@ export function renderBoxList(
   ruleCount: number,
   onOpenSchedule: (boxId: number) => void,
   onOpenRules: () => void,
+  onPrint: (boxId: number) => void,
   toast: (m: string) => void,
 ): void {
   const boxes = tool.boxes();
@@ -129,7 +130,7 @@ export function renderBoxList(
         }
       </details>
       <div class="box-actions">
-        ${rows ? '<button class="btn small primary" data-act="schedule">Open schedule</button>' : ''}
+        ${rows ? '<button class="btn small primary" data-act="schedule">Open schedule</button><button class="btn small primary" data-act="print">A3 printout</button>' : ''}
         <button class="btn small" data-act="copy">Copy corners</button>
       </div>
       ${box.id === selected ? '<div class="muted" style="margin-top:6px">Drag the box to move it · drag a corner to reshape · click an edge to add a corner · Alt+click a corner to remove it</div>' : ''}
@@ -140,6 +141,7 @@ export function renderBoxList(
       if (act === 'delete') tool.remove(box.id);
       else if (act === 'schedule') onOpenSchedule(box.id);
       else if (act === 'rules') onOpenRules();
+      else if (act === 'print') onPrint(box.id);
       else if (act === 'zoom') tool.zoomTo(box.id);
       else if (act === 'copy') {
         const text = ['Corner\tEasting\tNorthing', ...corners.map((c, i) => `${i + 1}\t${c[0].toFixed(3)}\t${c[1].toFixed(3)}`)].join('\n');

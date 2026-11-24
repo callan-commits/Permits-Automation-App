@@ -14,10 +14,11 @@ export const BASEMAPS: { id: BasemapId; label: string }[] = [
  * Free basemaps for development. Imagery is reprojected by OpenLayers into the
  * drawing's MGA zone. Swap in Nearmap / Vicmap here once a licence is available.
  */
-export function createBasemapLayer(id: BasemapId): TileLayer | null {
+export function createBasemapLayer(id: BasemapId, className?: string): TileLayer | null {
   switch (id) {
     case 'esri-imagery':
       return new TileLayer({
+        ...(className ? { className } : {}),
         source: new XYZ({
           url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
           maxZoom: 19,
@@ -26,7 +27,7 @@ export function createBasemapLayer(id: BasemapId): TileLayer | null {
         }),
       });
     case 'osm':
-      return new TileLayer({ source: new OSM({ crossOrigin: 'anonymous' }) });
+      return new TileLayer({ ...(className ? { className } : {}), source: new OSM({ crossOrigin: 'anonymous' }) });
     default:
       return null;
   }

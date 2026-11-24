@@ -19,6 +19,8 @@ import { ScheduleDialog } from './ui/scheduleDialog';
 import { checkPermits } from './permits/evaluate';
 import { PermitRules } from './permits/rules';
 import { RulesDialog } from './ui/rulesDialog';
+import { PrintDialog } from './ui/printDialog';
+import type { PlanKind } from './print/printout';
 import { ServicesDialog } from './ui/servicesDialog';
 import { renderBoxList, renderDrawingInfo, renderFeatureInfo, renderLayerList } from './ui/panels';
 import proj4 from 'proj4';
@@ -165,6 +167,7 @@ function watchRotation() {
   const view = map.getView();
   const show = () => {
     if (document.activeElement !== rotInput) rotInput.value = String(toDegrees(view.getRotation()));
+    utilities.setViewRotation(view.getRotation());
   };
   view.on('change:rotation', show);
   show();
@@ -310,6 +313,33 @@ function permitsForRing(ring: [number, number][]) {
   return engine && rules.all().length ? checkPermits(engine, register, edits, ring, rules.all()) : null;
 }
 const rulesDialog = new RulesDialog(rules, toast);
+function datumLabel(code: string): string {
+  const zone = code.slice(-2);
+  return `${code.startsWith('EPSG:78') ? 'GDA2020' : 'GDA94'} / MGA zone ${zone}`;
+}
+const printDialog = new PrintDialog(
+  (id) => {
+    const box = boxes.boxes().find((b) => b.id === id);
+    const rows = box ? rowsForRing(box.ring) : null;
+    return box && rows ? { box, rows } : null;
+  },
+  () => map.getView().getRotation(),
+  async (kind: PlanKind, box, rows, stage) =>
+    // Loaded on first use: the PDF library is large and only needed for printouts.
+    (await import('./print/printout')).makePrintout({
+      kind,
+      box,
+      rows,
+      utilities,
+      register,
+      crs: crsCode,
+      datum: datumLabel(crsCode),
+      rotation: map.getView().getRotation(),
+      basemap: basemapId,
+      sourceName: drawing?.fileName ?? 'drawing',
+      onStage: stage,
+    }),
+);
 $('open-rules').addEventListener('click', () => rulesDialog.open());
 const scheduleDialog = new ScheduleDialog(
   edits,
@@ -337,6 +367,7 @@ function renderBoxes() {
     rules.all().length,
     (id) => scheduleDialog.open(id),
     () => rulesDialog.open(),
+    (id) => printDialog.open(id),
     toast,
   );
   const list = boxes.boxes();
@@ -405,4 +436,4 @@ map.on('moveend', () => {
 });
 
 // Expose for debugging / automated tests.
-(window as unknown as Record<string, unknown>).__app = { map, boxes, utilities, register, rules, getDrawing: () => drawing, openFile, renderBoxes };
+(window as unknown as Record<string, unknown>).__app = { map, boxes, utilities, register, rules, rowsForRing, getDrawing: () => drawing, openFile, renderBoxes };

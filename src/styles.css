@@ -172,3 +172,8 @@ select { max-width: 270px; }
 .permit-section h3 { margin: 0 0 6px; font-size: 13px; }
 .permit-section ul { margin: 4px 0; padding-left: 18px; }
 .permit-section .svc-table td, .permit-section .svc-table th { padding: 3px 6px; }
+.print-dialog { width: min(720px, 94vw); }
+.print-body .check { margin: 8px 0; }
+.pk-result { margin: 10px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pk-result .muted { flex-basis: 100%; }
+.pk-status { margin-top: 8px; }
