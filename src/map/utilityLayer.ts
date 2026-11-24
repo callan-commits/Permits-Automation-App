@@ -66,6 +66,7 @@ export class UtilityLayers {
   private highlighted: CadFeature | null = null;
   private labelsOn = true;
   private styleCache = new Map<string, Style>();
+  private isOverhead: (layer: string) => boolean = () => false;
 
   private index: SpatialGrid<IndexedFeature> | null = null;
   private texts: CadText[] = [];
@@ -215,6 +216,12 @@ export class UtilityLayers {
     return this.labelsOn;
   }
 
+  /** Overhead services are drawn dashed. */
+  setOverheadTest(fn: (layer: string) => boolean): void {
+    this.isOverhead = fn;
+    this.geometryLayer.changed();
+  }
+
   hiddenLayers(): Set<string> {
     return new Set(this.hidden);
   }
@@ -302,13 +309,14 @@ export class UtilityLayers {
     if (resolution > (f.get('maxRes') as number) || this.hidden.has(f.get('layer'))) return undefined;
     const color = f.get('color') as string;
     const kind = f.get('kind') as string;
-    const key = `${kind}|${color}`;
+    const overhead = kind === 'line' && this.isOverhead(f.get('layer') as string);
+    const key = `${kind}|${color}|${overhead}`;
     let s = this.styleCache.get(key);
     if (!s) {
       if (kind === 'polygon') s = new Style({ stroke: new Stroke({ color, width: 1 }), fill: new Fill({ color: withAlpha(color, 0.25) }) });
       else if (kind === 'point')
         s = new Style({ image: new CircleStyle({ radius: 3, fill: new Fill({ color }), stroke: new Stroke({ color: '#000', width: 1 }) }) });
-      else s = new Style({ stroke: new Stroke({ color, width: 2 }) });
+      else s = new Style({ stroke: new Stroke({ color, width: 2, lineDash: overhead ? [10, 6] : undefined }) });
       this.styleCache.set(key, s);
     }
     return s;
