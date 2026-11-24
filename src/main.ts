@@ -6,7 +6,7 @@ import { Rotate, ScaleLine, defaults as defaultControls } from 'ol/control';
 import type TileLayer from 'ol/layer/Tile';
 import { loadCadFile } from './cad/loader';
 import type { CadDrawing, CadFeature } from './cad/types';
-import { CRS_OPTIONS, DEFAULT_CRS, checkExtentLooksLikeMga, projection, registerCrs } from './geo/crs';
+import { checkExtentLooksLikeMga, projection, registerCrs } from './geo/crs';
 import { BASEMAPS, type BasemapId, createBasemapLayer } from './map/basemaps';
 import { BoxTool, type DrawMode } from './map/boxTool';
 import { UtilityLayers } from './map/utilityLayer';
@@ -48,7 +48,8 @@ const store = {
   },
 };
 
-let crsCode = CRS_OPTIONS.some((c) => c.code === store.get('crs')) ? store.get('crs')! : DEFAULT_CRS;
+/** Calvillo works in one grid only: MGA2020 Zone 55 (GDA2020). */
+const crsCode = 'EPSG:7855';
 let basemapId = (BASEMAPS.some((b) => b.id === store.get('basemap')) ? store.get('basemap') : 'esri-imagery') as BasemapId;
 let drawing: CadDrawing | null = null;
 
@@ -99,25 +100,7 @@ function setBasemap(id: BasemapId) {
 }
 setBasemap(basemapId);
 
-function setCrs(code: string) {
-  // Drawing and box coordinates are interpreted in the chosen grid, so they keep their numbers;
-  // only the view (and therefore where the imagery lands) changes.
-  const v = map.getView();
-  map.setView(makeView(code, v.getCenter(), v.getResolution(), v.getRotation()));
-  watchRotation();
-  crsCode = code;
-  store.set('crs', code);
-  $('status-crs').textContent = CRS_OPTIONS.find((c) => c.code === code)!.label.split(' (')[0];
-  boxes.refresh();
-  if (drawing) renderDrawingInfo($('drawing-info'), drawing, checkExtentLooksLikeMga(drawing.focusExtent));
-}
-
-// ---- toolbar ----
-const crsSelect = $<HTMLSelectElement>('crs-select');
-crsSelect.innerHTML = CRS_OPTIONS.map((c) => `<option value="${c.code}">${c.label}</option>`).join('');
-crsSelect.value = crsCode;
-crsSelect.addEventListener('change', () => setCrs(crsSelect.value));
-setCrs(crsCode);
+$('status-crs').textContent = 'MGA2020 Zone 55';
 
 const basemapSelect = $<HTMLSelectElement>('basemap-select');
 basemapSelect.innerHTML = BASEMAPS.map((b) => `<option value="${b.id}">${b.label}</option>`).join('');

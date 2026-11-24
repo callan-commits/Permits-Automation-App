@@ -30,7 +30,7 @@ export interface PrintoutInput {
   author?: string;
 }
 
-const AUTHOR = 'Permit Automation';
+const AUTHOR = 'Calvillo';
 const fmtNum = (n: number) => (Math.abs(n) < 1e-9 ? '0' : n.toFixed(3).replace(/\.?0+$/, ''));
 const pdfDate = (d: Date) => {
   const p = (n: number) => String(n).padStart(2, '0');
@@ -43,8 +43,8 @@ const hex = (c: [number, number, number]) => '#' + c.map((v) => Math.round(v * 2
 let nmCounter = 0;
 const uid = () => `pa-${Date.now().toString(36)}-${(nmCounter++).toString(36)}`;
 
-export const FILL_NORMAL: [number, number, number] = [1, 1, 1];
-export const FILL_NEEDS_INPUT: [number, number, number] = [1, 0.94, 0.4];
+/** Every callout is highlighted yellow: each one must be checked and completed by the engineer. */
+export const FILL_CALLOUT: [number, number, number] = [1, 0.94, 0.4];
 
 export async function buildPrintoutPdf(input: PrintoutInput): Promise<Uint8Array> {
   const { frame } = input;
@@ -52,8 +52,8 @@ export async function buildPrintoutPdf(input: PrintoutInput): Promise<Uint8Array
   const doc = await PDFDocument.create();
   doc.setTitle(input.title);
   doc.setAuthor(input.author ?? AUTHOR);
-  doc.setCreator('Permit Automation app');
-  doc.setProducer('Permit Automation app (pdf-lib)');
+  doc.setCreator('Calvillo');
+  doc.setProducer('Calvillo (pdf-lib)');
   doc.setCreationDate(input.printedAt);
   doc.setModificationDate(input.printedAt);
   const page = doc.addPage([pageW, pageH]);
@@ -86,12 +86,12 @@ export async function buildPrintoutPdf(input: PrintoutInput): Promise<Uint8Array
   // centre: datum and scale, note
   const centre = `Datum / Projection: ${input.datum}   ·   Scale 1:${frame.spec.scale} at A3`;
   page.drawText(centre, { x: pageW / 2 - font.widthOfTextAtSize(centre, 9) / 2, y: fy1, size: 9, font });
-  const note = 'Callouts are editable. Yellow callouts need checking before use.';
+  const note = 'Callouts are editable. Complete [insert service] and check every RL before use.';
   page.drawText(note, { x: pageW / 2 - font.widthOfTextAtSize(note, 8) / 2, y: fy2, size: 8, font, color: rgb(0.35, 0.35, 0.35) });
   // right: printed date
   const printed = `Printed ${input.printedAt.toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
   page.drawText(printed, { x: pageW - 14 - font.widthOfTextAtSize(printed, 8.5), y: fy1, size: 8.5, font, color: rgb(0.25, 0.25, 0.25) });
-  const tool = 'Permit Automation app';
+  const tool = 'Made with Calvillo';
   page.drawText(tool, { x: pageW - 14 - font.widthOfTextAtSize(tool, 8), y: fy2, size: 8, font, color: rgb(0.45, 0.45, 0.45) });
 
   // --- scale bar (bottom-left of the map): 10 m in 2 m blocks
@@ -182,7 +182,7 @@ export async function buildPrintoutPdf(input: PrintoutInput): Promise<Uint8Array
 
 function calloutAnnot(ctx: PDFDocument['context'], c: PlacedCallout, font: PDFFont, fontRef: PDFRef, now: string) {
   const { box } = c;
-  const fill = c.needsInput ? FILL_NEEDS_INPUT : FILL_NORMAL;
+  const fill = FILL_CALLOUT;
   // Rect covers the box, the leader and the arrow head.
   const xs = [box.x, box.x + box.w, c.anchor[0], c.knee[0], c.attach[0]];
   const ys = [box.y, box.y + box.h, c.anchor[1], c.knee[1], c.attach[1]];
