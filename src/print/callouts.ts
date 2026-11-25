@@ -130,6 +130,7 @@ function freeSpot(
   placed: PlacedCallout[],
   workArea: XY[],
   clearLeaders: boolean,
+  keepClear: Rect[] = [],
 ): { score: number; box: Rect; knee: XY; attach: XY } | null {
   const tip = spec.anchor;
   let best: { score: number; box: Rect; knee: XY; attach: XY } | null = null;
@@ -146,6 +147,8 @@ function freeSpot(
       if (!toRight && x + w > tip[0] - KNEE) continue; // box must sit clear of the anchor
       if (toRight && x < tip[0] + KNEE) continue;
       if (placed.some((p) => overlaps(p.box, box, 4))) continue;
+      if (keepClear.some((k) => overlaps(k, box, 4))) continue;
+      if (clearLeaders && keepClear.some((k) => segmentHitsRect(tip, knee, k))) continue;
       if (workArea.length > 2 && rectHitsPolygon(box, workArea)) continue;
       if (placed.some((p) => p.anchor[0] > x - 4 && p.anchor[0] < x + w + 4 && p.anchor[1] > y - 4 && p.anchor[1] < y + h + 4)) continue;
       if (clearLeaders && placed.some((p) => segmentHitsRect(tip, knee, p.box) || segmentHitsRect(p.anchor, p.knee, box))) continue;
@@ -288,6 +291,8 @@ export function layoutCallouts(
   frame: Rect,
   workArea: XY[],
   textWidth: (text: string) => number,
+  /** Areas of the sheet to keep callouts (and, where possible, leaders) off: legend, north arrow, scale bar. */
+  keepClear: Rect[] = [],
 ): PlacedCallout[] {
   if (!specs.length) return [];
   const margin = 6;
@@ -531,6 +536,7 @@ export function layoutCallouts(
     const out: PlacedCallout[] = [];
     const blocked = (p: PlacedCallout, box: Rect) =>
       out.some((o) => overlaps(o.box, box, 2)) ||
+      keepClear.some((k) => overlaps(k, box, 4)) ||
       (workArea.length > 2 && rectHitsPolygon(box, workArea)) ||
       placed.some((o) => o !== p && o.anchor[0] > box.x - 2 && o.anchor[0] < box.x + box.w + 2 && o.anchor[1] > box.y - 2 && o.anchor[1] < box.y + box.h + 2);
     for (const p of placed) {
@@ -551,7 +557,9 @@ export function layoutCallouts(
           const q: XY = [pc[0] + rad[0] * k * 6 + tan[0] * m * 8, pc[1] + rad[1] * k * 6 + tan[1] * m * 8];
           const v = { ...p, ...placeAt(p.anchor, q, w, h) };
           if (!insideFrame(v.box) || blocked(p, v.box)) continue;
-          const crossings = out.reduce((t, o) => t + (leadersCross(o, v) ? 1 : 0) + (leaderUnderBox(o, v.box) ? 1 : 0) + (leaderUnderBox(v, o.box) ? 1 : 0), 0);
+          const crossings =
+            out.reduce((t, o) => t + (leadersCross(o, v) ? 1 : 0) + (leaderUnderBox(o, v.box) ? 1 : 0) + (leaderUnderBox(v, o.box) ? 1 : 0), 0) +
+            keepClear.filter((k) => leaderUnderBox(v, k)).length;
           const score = crossings * 1000 + Math.hypot(q[0] - pc[0], q[1] - pc[1]);
           if (!best || score < best.score) best = { score, v };
         }
@@ -560,13 +568,14 @@ export function layoutCallouts(
         out.push(best.v);
         continue;
       }
-      const spot = freeSpot(p, w, h, frame, margin, out, workArea, true) ?? freeSpot(p, w, h, frame, margin, out, workArea, false);
+      const spot = freeSpot(p, w, h, frame, margin, out, workArea, true, keepClear) ?? freeSpot(p, w, h, frame, margin, out, workArea, false, keepClear);
       out.push(spot ? { ...p, box: spot.box, knee: spot.knee, attach: spot.attach, crowded: false } : { ...p, crowded: true });
     }
     // Then nudge any callout whose leader still crosses another, or runs under another box, to the
     // nearby spot that tangles least.
     const inv = (v: PlacedCallout, k: number, list: PlacedCallout[]) =>
-      list.reduce((t, o, m) => (m === k ? t : t + (leadersCross(o, v) ? 1 : 0) + (leaderUnderBox(o, v.box) ? 1 : 0) + (leaderUnderBox(v, o.box) ? 1 : 0)), 0);
+      list.reduce((t, o, m) => (m === k ? t : t + (leadersCross(o, v) ? 1 : 0) + (leaderUnderBox(o, v.box) ? 1 : 0) + (leaderUnderBox(v, o.box) ? 1 : 0)), 0) +
+      keepClear.filter((r) => leaderUnderBox(v, r)).length;
     for (let pass = 0; pass < 4; pass++) {
       let changed = false;
       for (let k = 0; k < out.length; k++) {
@@ -588,6 +597,7 @@ export function layoutCallouts(
             const v = { ...p, ...placeAt(p.anchor, q, w, h) };
             if (!insideFrame(v.box)) continue;
             if (out.some((o, m2) => m2 !== k && overlaps(o.box, v.box, 2))) continue;
+            if (keepClear.some((r) => overlaps(r, v.box, 4))) continue;
             if (workArea.length > 2 && rectHitsPolygon(v.box, workArea)) continue;
             if (out.some((o, m2) => m2 !== k && o.anchor[0] > v.box.x - 2 && o.anchor[0] < v.box.x + v.box.w + 2 && o.anchor[1] > v.box.y - 2 && o.anchor[1] < v.box.y + v.box.h + 2)) continue;
             const n = inv(v, k, out);

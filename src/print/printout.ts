@@ -6,7 +6,7 @@ import type { UtilityLayers } from '../map/utilityLayer';
 import type { ServiceRegister } from '../services/register';
 import type { ScheduleRow } from '../services/scheduleModel';
 import { type PlacedCallout, calloutSpecs, layoutCallouts, CALLOUT_FONT_SIZE } from './callouts';
-import { buildPrintoutPdf } from './pdf';
+import { buildPrintoutPdf, sheetFurniture } from './pdf';
 import { canvasBytes, renderMapImage } from './renderMap';
 import { A3_LANDSCAPE_1_300, frameFor, pixelToPage, printCentre, sheetAxes } from './sheet';
 import { calloutColour, rowsForPlan } from './planRules';
@@ -80,7 +80,7 @@ export async function makePrintout(opts: {
   const specs = calloutSpecs(planRows, toPage, (row) => calloutColour(row.entry.run.primary.color));
   const workArea = opts.box.ring.map(toPage);
   const frameRect = { x: 0, y: frame.spec.pageH - frame.frameH, w: frame.frameW, h: frame.frameH };
-  const callouts = layoutCallouts(specs, frameRect, workArea, await textMeasurer());
+  const callouts = layoutCallouts(specs, frameRect, workArea, await textMeasurer(), sheetFurniture(frame).keepClear);
   const n0 = toPage(centre);
   const n1 = toPage([centre[0], centre[1] + 10]);
   opts.onStage?.('Building the PDF…');
