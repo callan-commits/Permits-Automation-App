@@ -26,13 +26,15 @@ export interface ExcavationBox {
   ring: XY[];
 }
 
-const BOX_COLOUR = '#ffcc00';
+/** Work area (excavation) colour: bright green, filled at 40% opacity (the printout matches). */
+const BOX_COLOUR = '#00ff00';
+const BOX_FILL = 'rgba(0,255,0,0.4)';
 
 function boxStyle(selected: boolean, name: string): Style[] {
   return [
     new Style({
       stroke: new Stroke({ color: selected ? '#ffffff' : BOX_COLOUR, width: selected ? 3 : 2.5, lineDash: selected ? [8, 4] : undefined }),
-      fill: new Fill({ color: selected ? 'rgba(255,255,255,0.15)' : 'rgba(255,204,0,0.12)' }),
+      fill: new Fill({ color: BOX_FILL }),
       text: new Text({
         text: name,
         font: 'bold 13px system-ui, sans-serif',

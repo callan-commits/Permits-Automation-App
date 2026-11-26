@@ -18,6 +18,7 @@ Working:
   - **▭ Box** draws a rectangle square to the screen (click two corners).
   - **⟋ Rotated box**: two clicks along one edge, then a third click to set the width.
   - **⬠ Free-form** draws any shape. Click each corner, then finish by clicking the first corner, double-clicking or pressing Enter. Backspace undoes a corner.
+  - Work areas show bright green with a 40% fill (a white dashed edge when selected).
   - Select a box to edit it: drag inside to move it, drag a corner to reshape it, click an edge to add a corner, and Alt+click a corner to remove it. Shapes whose edges cross are rejected.
   - The sidebar shows area, perimeter, extents, bearing, centre and every corner in MGA (with **Copy corners**).
 - **Rotate the map**: use the rotation box (type degrees, or ±15° buttons), **North up**, **Align to box** (puts the selected box's long side left to right), Alt+Shift+drag, or a two-finger twist. The north arrow always shows grid north.
@@ -42,8 +43,9 @@ Working:
   - Services of unknown owner within the largest trigger distance are flagged, because one could need a permit.
 - **A3 printout at 1:300** (**A3 printout** on a box card): a PDF centred on the box, using the map's rotation, imagery and visible layers.
   - **Editable callouts**: standard PDF callout annotations, like those made in Bluebeam or Acrobat. There is one per crossing or closest point, with a coloured leader and an open arrow. Every callout is yellow and reads "[insert service]" then "RL: ~45.100 QLB" (or "RL: [insert RL]"), so the engineer fills in and checks each service.
-  - **Callout layout**: callouts sit on a ring (an ellipse) around the work area, in the same clock order as their arrow tips, so leaders don't cross. Busy areas first enlarge the ring, then use a second ring out to the sheet edge. A final pass swaps or nudges callouts to remove any remaining crossings, and any leader running under another box. Boxes never overlap each other, the work area or another arrow tip.
-  - The work area is an editable polygon.
+  - **Callout layout**: callouts sit on a ring (an ellipse) around the work area, in the same clock order as their arrow tips, so leaders don't cross. Busy areas first enlarge the ring, then use a second ring out to the sheet edge. A final pass swaps or nudges callouts to remove any remaining crossings, and any leader running under another box. Boxes never overlap each other, the work area, another arrow tip, the legend, the north arrow or the scale bar.
+  - The work area is an editable polygon: bright green, filled, at 40% opacity (the same as on the map).
+  - **Legend** (top right, left of the north arrow): an editable text box with a bold "Legend" title, and below it an editable "[insert excavation]" box with a swatch in the work area's colour.
   - The page is calibrated, so PDF measuring tools read metres at 1:300.
   - North arrow, scale bar and footer (source, datum, scale, date).
   - Imagery is stored as JPEG and linework as PNG, so line colours stay exact.
@@ -69,7 +71,7 @@ npm install
 npm run dev        # then open http://localhost:5173
 ```
 
-Click **Load sample** for a synthetic test survey near Caulfield. It is invented geometry and does not represent real assets.
+Open a DWG or DXF with **Open DWG / DXF** or drag it onto the map. A synthetic test survey (invented geometry near Caulfield) is kept in `tests/data/` for the automated tests; it is not published with the app.
 
 Other commands:
 

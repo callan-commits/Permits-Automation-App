@@ -6,7 +6,7 @@ import { bulgeSegment, cleanMText, convertDatabase } from '../src/cad/convert';
 import { aciToHex } from '../src/cad/aci';
 import type { CadDrawing, CadLine, CadText } from '../src/cad/types';
 
-const SAMPLE = resolve(__dirname, '../public/samples/sample-utility-survey.dxf');
+const SAMPLE = resolve(__dirname, './data/sample-utility-survey.dxf');
 // Same construction as scripts/make_sample_dxf.py
 const ORIGIN = [327842.9, 5805970.5];
 const B = (135 * Math.PI) / 180;

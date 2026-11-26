@@ -18,7 +18,7 @@ let sample: CadDrawing;
 beforeAll(async () => {
   lib = await LibreDwg.create(resolve(__dirname, '../node_modules/@mlightcad/libredwg-web/wasm'));
   meta = load('data/metadata.dxf');
-  sample = load('../public/samples/sample-utility-survey.dxf');
+  sample = load('./data/sample-utility-survey.dxf');
 });
 
 describe('utility metadata is preserved', () => {

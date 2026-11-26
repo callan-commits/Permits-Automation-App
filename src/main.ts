@@ -230,18 +230,6 @@ $<HTMLInputElement>('file-input').addEventListener('change', async (e) => {
   input.value = '';
 });
 
-$('load-sample').addEventListener('click', async () => {
-  busy('Fetching sample…');
-  try {
-    const res = await fetch(`${import.meta.env.BASE_URL}samples/sample-utility-survey.dxf`);
-    if (!res.ok) throw new Error(`Sample not found (${res.status})`);
-    await openFile('sample-utility-survey.dxf', await res.arrayBuffer());
-  } catch (err) {
-    toast((err as Error).message, true);
-    busy(null);
-  }
-});
-
 // Drag and drop onto the map
 const mapWrap = document.querySelector('.map-wrap') as HTMLElement;
 let dragDepth = 0;

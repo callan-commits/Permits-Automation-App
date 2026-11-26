@@ -8,7 +8,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "sample": "python3 scripts/make_sample_dxf.py public/samples/sample-utility-survey.dxf"
+    "sample": "python3 scripts/make_sample_dxf.py tests/data/sample-utility-survey.dxf"
   },
   "repository": {
     "type": "git",

@@ -184,6 +184,17 @@ describe('callout layout (ring around the work area)', () => {
     expect(countLeadersUnderBoxes(placed)).toBeLessThanOrEqual(8);
   });
 
+  it('keeps callouts off the legend, north arrow and scale bar', () => {
+    const legend = { x: 760, y: 360, w: 190, h: 120 }; // right where these callouts would otherwise go
+    const anchors: XY[] = [];
+    for (let i = 0; i < 12; i++) anchors.push([700, 350 + (i * 150) / 11]); // all on the right-hand side, under the legend
+    const hit = (b: { x: number; y: number; w: number; h: number }) => b.x < legend.x + legend.w && legend.x < b.x + b.w && b.y < legend.y + legend.h && legend.y < b.y + b.h;
+    expect(layoutCallouts(anchors.map((a, i) => spec(`s${i}`, a)), frame, area, width).some((p) => hit(p.box))).toBe(true);
+    const placed = layoutCallouts(anchors.map((a, i) => spec(`s${i}`, a)), frame, area, width, [legend]);
+    expect(noOverlaps(placed)).toBe(true);
+    expect(placed.every((p) => !(p.box.x < legend.x + legend.w && legend.x < p.box.x + p.box.w && p.box.y < legend.y + legend.h && legend.y < p.box.y + p.box.h))).toBe(true);
+  });
+
   it('extreme case: 45 random points packed in and around the box still never overlap and stay on the sheet', () => {
     let seed = 3;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -231,15 +242,40 @@ describe('PDF', () => {
     const annots = page.node.Annots()!;
     const dicts = annots.asArray().map((r) => doc.context.lookup(r) as PDFDict);
     const subtypes = dicts.map((d) => d.get(PDFName.of('Subtype'))!.toString());
-    expect(subtypes).toEqual(['/Polygon', '/FreeText', '/FreeText']);
-    const c = dicts[1];
+    expect(subtypes).toEqual(['/Polygon', '/FreeText', '/FreeText', '/Square', '/FreeText', '/FreeText']);
+    const num = (d: PDFDict, k: string) => (d.get(PDFName.of(k)) as PDFNumber).asNumber();
+    const nums = (d: PDFDict, k: string) => (d.get(PDFName.of(k)) as PDFArray).asArray().map((n) => (n as PDFNumber).asNumber());
+    const text = (d: PDFDict) => (d.get(PDFName.of('Contents')) as PDFHexString).decodeText();
+    // work area: bright green, filled, 40% opacity
+    expect(nums(dicts[0], 'C')).toEqual([0, 1, 0]);
+    expect(nums(dicts[0], 'IC')).toEqual([0, 1, 0]);
+    expect(num(dicts[0], 'CA')).toBeCloseTo(0.4, 9);
+    // legend: bold "Legend" title box, then "[insert excavation]" with a swatch matching the work area,
+    // in the top-right corner left of the north arrow
+    const [title, entry, swatch] = [dicts[1], dicts[2], dicts[3]];
+    expect(title.get(PDFName.of('IT'))).toBeUndefined();
+    expect(text(title)).toBe('Legend');
+    expect((title.get(PDFName.of('DA')) as PDFString).decodeText()).toContain('/HeBo');
+    expect((title.get(PDFName.of('RC')) as PDFHexString).decodeText()).toContain('font-weight:bold');
+    expect(num(title, 'Q')).toBe(1);
+    expect(text(entry)).toBe('[insert excavation]');
+    expect(nums(swatch, 'IC')).toEqual([0, 1, 0]);
+    expect(num(swatch, 'CA')).toBeCloseTo(0.4, 9);
+    const tr = nums(title, 'Rect');
+    const er = nums(entry, 'Rect');
+    const sr = nums(swatch, 'Rect');
+    expect(tr[3]).toBeGreaterThan(page.getHeight() - 20); // at the top
+    expect(tr[2]).toBeGreaterThan(page.getWidth() - 80); // at the right, left of the north arrow
+    expect(er[3]).toBeCloseTo(tr[1], 6); // entry directly below the title
+    expect(sr[0] >= er[0] && sr[2] <= er[2] && sr[1] >= er[1] && sr[3] <= er[3]).toBe(true); // swatch inside the entry box
+    const c = dicts[4];
     expect(c.get(PDFName.of('IT'))!.toString()).toBe('/FreeTextCallout');
     expect((c.get(PDFName.of('CL')) as PDFArray).size()).toBe(6);
     expect(c.get(PDFName.of('LE'))!.toString()).toBe('/OpenArrow');
     expect((c.get(PDFName.of('Contents')) as PDFHexString).decodeText()).toBe('[insert service]\rRL: ~32.088 QLB');
     expect(c.get(PDFName.of('AP'))).toBeDefined();
     // every callout is filled yellow
-    for (const d of [dicts[1], dicts[2]]) {
+    for (const d of [dicts[4], dicts[5]]) {
       const fill = (d.get(PDFName.of('C')) as PDFArray).asArray().map((n) => (n as PDFNumber).asNumber());
       expect(fill).toEqual([1, 0.94, 0.4]);
     }
