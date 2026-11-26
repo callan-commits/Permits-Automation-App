@@ -327,7 +327,39 @@ const scheduleDialog = new ScheduleDialog(
     renderFeatureInfo($('feature-info'), f, row.info);
     map.getView().animate({ center: row.entry.points[0].at, duration: 250 });
   },
+  () => renderBoxes(),
+  toast,
 );
+/** Open a box's schedule, then shift the map so the box isn't hidden behind the schedule panel. */
+function openSchedule(id: number) {
+  scheduleDialog.open(id);
+  const box = boxes.boxes().find((b) => b.id === id);
+  const panel = scheduleDialog.panelRect;
+  if (!box || !panel) return;
+  const mapRect = (map.getTargetElement() as HTMLElement | null)?.getBoundingClientRect();
+  const px = box.ring.map((c) => map.getPixelFromCoordinate(c)).filter(Boolean);
+  if (!px.length || !mapRect) return;
+  const xs = px.map((p) => p[0] + mapRect.left);
+  const ys = px.map((p) => p[1] + mapRect.top);
+  const bb = { l: Math.min(...xs), r: Math.max(...xs), t: Math.min(...ys), b: Math.max(...ys) };
+  const covered = bb.r > panel.left && bb.l < panel.right && bb.b > panel.top && bb.t < panel.bottom;
+  if (!covered) return;
+  // The largest part of the map the panel leaves clear: above, below, left or right of it.
+  const free = [
+    { l: mapRect.left, r: mapRect.right, t: mapRect.top, b: Math.min(mapRect.bottom, panel.top) },
+    { l: mapRect.left, r: mapRect.right, t: Math.max(mapRect.top, panel.bottom), b: mapRect.bottom },
+    { l: mapRect.left, r: Math.min(mapRect.right, panel.left), t: mapRect.top, b: mapRect.bottom },
+    { l: Math.max(mapRect.left, panel.right), r: mapRect.right, t: mapRect.top, b: mapRect.bottom },
+  ].sort((a, b) => (b.r - b.l) * (b.b - b.t) - (a.r - a.l) * (a.b - a.t))[0];
+  if (free.r - free.l < 80 || free.b - free.t < 80) return;
+  const dx = (free.l + free.r) / 2 - (bb.l + bb.r) / 2;
+  const dy = (free.t + free.b) / 2 - (bb.t + bb.b) / 2;
+  const size = map.getSize();
+  if (!size) return;
+  const centre = map.getCoordinateFromPixel([size[0] / 2 - dx, size[1] / 2 - dy]);
+  if (centre) map.getView().animate({ center: centre, duration: 300 });
+}
+
 function renderBoxes() {
   renderBoxList(
     $('box-list'),
@@ -336,13 +368,15 @@ function renderBoxes() {
     rowsForRing,
     permitsForRing,
     rules.all().length,
-    (id) => scheduleDialog.open(id),
+    (id) => openSchedule(id),
     () => rulesDialog.open(),
     (id) => printDialog.open(id),
     toast,
   );
   const list = boxes.boxes();
-  const shown = list.find((b) => b.id === boxes.selectedId) ?? (list.length === 1 ? list[0] : undefined);
+  // Label services (S1, S2…) for the box whose schedule is open, else the selected box.
+  const shown =
+    list.find((b) => b.id === scheduleDialog.openBoxId) ?? list.find((b) => b.id === boxes.selectedId) ?? (list.length === 1 ? list[0] : undefined);
   scheduleLayer.show(shown ? rowsForRing(shown.ring) : null);
   scheduleDialog.refresh();
 }
@@ -359,16 +393,9 @@ function updateServiceNotice() {
     return;
   }
   const rows = register.summarise(drawing);
-  const n = rows.filter((r) => r.incomplete).length;
   el.hidden = false;
-  el.classList.toggle('ok', n === 0);
-  el.innerHTML =
-    n > 0
-      ? `<span>⚠ ${n} layer${n === 1 ? '' : 's'} with unknown owner or service type</span><button class="btn small" data-open="incomplete">Review</button>`
-      : `<span>All ${rows.length} service layers identified</span><button class="btn small" data-open="all">Services…</button>`;
-  el.querySelector('button')!.addEventListener('click', (e) =>
-    servicesDialog.open((e.currentTarget as HTMLElement).dataset.open === 'incomplete'),
-  );
+  el.innerHTML = `<span>${rows.length} service layer${rows.length === 1 ? '' : 's'}</span><button class="btn small" title="Set each layer's service type, owner, overhead, or 'not a service'">Services…</button>`;
+  el.querySelector('button')!.addEventListener('click', () => servicesDialog.open(false));
 }
 register.onChange(() => {
   utilities.setOverheadTest((layer) => register.isOverhead(layer));

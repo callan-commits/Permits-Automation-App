@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { ScheduleEngine } from '../src/analysis/schedule';
 import type { CadDrawing, CadFeature, XY } from '../src/cad/types';
 import { checkPermits } from '../src/permits/evaluate';
-import { type PermitRule, ownerMatchesRule, parseRuleRows } from '../src/permits/rules';
+import { BUILT_IN_RULES } from '../src/permits/builtInRules';
+import { type PermitRule, PermitRules, ownerMatchesRule } from '../src/permits/rules';
 import { ServiceRegister } from '../src/services/register';
 import { ScheduleEdits } from '../src/services/scheduleModel';
 
@@ -14,29 +15,41 @@ const RULES: PermitRule[] = [
   { id: '4', owner: 'Zinfra', distance: 6.4, permit: 'PERMIT-C' },
 ];
 
-describe('reading a cheat sheet', () => {
-  it('finds the table anywhere on the sheet (offset header, blank first column)', () => {
-    const rows = [
-      [null, null, null, null],
-      [null, 'Owner', 'Distance (m)', 'Permit Required'],
-      [null, 'MTM/Metro Trains Melbourne', 2, 'PERMIT-A'],
-      [null, 'VicTrack', '5 m', 'PERMIT-B'],
-      [null, 'Jemena', 6.4, 'PERMIT-C'],
-      [null, null, null, null],
-      [null, 'Notes below the table are ignored', null, null],
-    ];
-    const { rules, problems } = parseRuleRows(rows);
-    expect(rules.map((r) => [r.owner, r.distance, r.permit])).toEqual([
-      ['MTM/Metro Trains Melbourne', 2, 'PERMIT-A'],
-      ['VicTrack', 5, 'PERMIT-B'],
-      ['Jemena', 6.4, 'PERMIT-C'],
+describe('built-in permit rules', () => {
+  const store = () => {
+    const m = new Map<string, string>();
+    return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
+  };
+
+  it('match the cheat sheet', () => {
+    expect(BUILT_IN_RULES.map((r) => [r.owner, r.distance, r.permit])).toEqual([
+      ['MTM/Metro Trains Melbourne', 2, 'NAE'],
+      ['VicTrack', 5, 'PTW'],
+      ['Jemena', 6.4, 'VESI'],
+      ['Zinfra', 6.4, 'VESI'],
+      ['Melbourne Water', 5, 'PTW'],
     ]);
-    expect(problems).toEqual([]);
   });
 
-  it('reports unreadable rows and a missing header', () => {
-    expect(parseRuleRows([['Owner', 'Distance', 'Permit'], ['X', 'far', 'P']]).problems[0]).toMatch(/Row 2: skipped/);
-    expect(parseRuleRows([['a', 'b']]).problems[0]).toMatch(/No header row/);
+  it('are used by default, and edits persist in the browser until reset', () => {
+    const s = store();
+    const rules = new PermitRules(s);
+    expect(rules.isEdited).toBe(false);
+    expect(rules.all()).toHaveLength(5);
+    expect(rules.maxDistance).toBe(6.4);
+    rules.update(rules.all()[1].id, { distance: 7 });
+    const reopened = new PermitRules(s);
+    expect(reopened.isEdited).toBe(true);
+    expect(reopened.all()[1].distance).toBe(7);
+    reopened.resetToBuiltIn();
+    expect(new PermitRules(s).isEdited).toBe(false);
+    expect(new PermitRules(s).all()[1].distance).toBe(5);
+  });
+
+  it('ignore rules imported by earlier versions', () => {
+    const s = store();
+    s.setItem('permits.rules.v1', JSON.stringify([{ id: 'x', owner: 'Old', distance: 1, permit: 'OLD' }]));
+    expect(new PermitRules(s).all().map((r) => r.permit)).toEqual(['NAE', 'PTW', 'VESI', 'VESI', 'PTW']);
   });
 });
 

@@ -159,14 +159,11 @@ export function renderBoxList(
 
 function permitSummary(check: PermitCheck | null, ruleCount: number): string {
   if (!ruleCount) {
-    return `<div class="permit-box none">No permit rules loaded. <button class="btn small" data-act="rules">Import cheat sheet</button></div>`;
+    return `<div class="permit-box none">No permit rules: open <b>Permit rules</b> in the toolbar to restore them.</div>`;
   }
   if (!check) return '';
   const chips = check.required.map((p) => `<span class="permit-chip" title="${esc(permitReason(p.triggers))}">${esc(p.permit)}</span>`).join('');
-  const unknown = check.unknownOwners.length
-    ? `<div class="svc-unknown" style="margin-top:4px">⚠ ${check.unknownOwners.length} service${check.unknownOwners.length === 1 ? '' : 's'} of unknown owner nearby: a permit may be needed. Fill in the owner in the schedule.</div>`
-    : '';
-  return `<div class="permit-box"><b>Permits:</b> ${chips || '<span class="muted">none required</span>'}${unknown}</div>`;
+  return `<div class="permit-box"><b>Permits:</b> ${chips || '<span class="muted">none required</span>'}</div>`;
 }
 
 export function permitReason(triggers: PermitCheck['required'][number]['triggers']): string {
