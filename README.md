@@ -22,7 +22,7 @@ Working:
   - Select a box to edit it: drag inside to move it, drag a corner to reshape it, click an edge to add a corner, and Alt+click a corner to remove it. Shapes whose edges cross are rejected.
   - The sidebar shows area, perimeter, extents, bearing, centre and every corner in MGA (with **Copy corners**).
 - **Rotate the map**: use the rotation box (type degrees, or ±15° buttons), **North up**, **Align to box** (puts the selected box's long side left to right), Alt+Shift+drag, or a two-finger twist. The north arrow always shows grid north.
-- **Service register** (**Services…** / **Review** in the Layers panel): each layer's service type, owner and overhead flag.
+- **Service register** (**Services…** in the Layers panel): each layer's service type, owner and overhead flag.
   - Values come from object data where present (OWNER / SERVICE / QL attributes or `KEY=VALUE` XDATA), otherwise they're guessed from the layer name (e.g. `GAS-MULTINET` → Gas, Multinet Gas; `OH`, `OVERHEAD`, `AERIAL` → overhead).
   - Unknowns are highlighted for you to fill in. Edits are remembered in the browser for any drawing using the same layer names.
   - Owner abbreviations are recognised (MTM → Metro Trains Melbourne, UE → United Energy, SEW → South East Water…).
@@ -33,14 +33,14 @@ Working:
   - "~" marks levels not surveyed to QL-A, as on existing markups.
   - Pits and other block symbols are treated as one item.
   - Unknown owner, type or RL is highlighted. Type over any value to correct it, or untick to leave a service off. Edits are remembered per drawing.
-  - Map markers (S1, S2…) show where each RL applies, with a dashed line showing the gap for services that don't cross.
+  - Map markers (S1, S2…) show where each RL applies, with a dashed line showing the gap for services that don't cross. While a schedule is open, the markers are for that box.
+  - **The schedule opens in a floating panel**, so the map stays usable alongside it. The map shifts so the box isn't hidden behind the panel. Drag the panel by its title bar and resize it from the bottom-right corner; it reopens where you left it. **⧉ Pop out** moves it into its own browser window (e.g. on a second screen). Edits and **Show on map** clicks there update the app, and **Back to app** docks it again. The browser must allow pop-ups for the site.
   - Layers can be marked **not a service** in the Services table (survey points, fences, contours…).
-- **Permits** (**Permit rules** in the toolbar): import your permit cheat sheet (.xlsx with Owner / Distance / Permit columns, anywhere on the sheet) or edit the rules in the app. Rules are stored in the browser only.
+- **Permits** (**Permit rules** in the toolbar): the permit cheat sheet is built into the app (`src/permits/builtInRules.ts`); there is no spreadsheet import. Rules can be edited in the app, kept in that browser only, with **Reset to built-in rules**. To change a rule for everyone, edit `builtInRules.ts`.
   - A permit is required when a box is within the trigger distance (horizontally, inclusive) of any asset of that owner. Crossing or inside counts as 0 m.
   - Every service counts, including overhead ones.
   - Alternative owner names are separated by "/" (e.g. `MTM/Metro Trains Melbourne`), and known abbreviations match.
   - Each box card shows the required permits. The schedule explains each trigger (owner, distance, rule, ID) and lists every rule with its nearest asset.
-  - Services of unknown owner within the largest trigger distance are flagged, because one could need a permit.
 - **A3 printout at 1:300** (**A3 printout** on a box card): a PDF centred on the box, using the map's rotation, imagery and visible layers.
   - **Editable callouts**: standard PDF callout annotations, like those made in Bluebeam or Acrobat. There is one per crossing or closest point, with a coloured leader and an open arrow. Every callout is yellow and reads "[insert service]" then "RL: ~45.100 QLB" (or "RL: [insert RL]"), so the engineer fills in and checks each service.
   - **Callout layout**: callouts sit on a ring (an ellipse) around the work area, in the same clock order as their arrow tips, so leaders don't cross. Busy areas first enlarge the ring, then use a second ring out to the sheet edge. A final pass swaps or nudges callouts to remove any remaining crossings, and any leader running under another box. Boxes never overlap each other, the work area, another arrow tip, the legend, the north arrow or the scale bar.
@@ -127,7 +127,7 @@ Benchmark: on a synthetic survey with 104,000 objects (`python3 scripts/make_str
 2. ✅ Map rotation
 3. ✅ Service register: owner, type and overhead per layer, unknowns highlighted
 4. ✅ Box schedule: services within 10 m, with RLs at crossings / closest points
-5. ✅ Permits from the cheat sheet
+5. ✅ Permits from the cheat sheet (built in)
 6. ✅ A3 PDF markup at 1:300 with editable callouts, plus an overheads plan
 7. Methodology prompt and pre-filled permit documents (waiting on blank forms)
 8. Later: depths (surface levels), several drawings at once, saving and reopening a job

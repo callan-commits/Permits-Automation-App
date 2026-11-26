@@ -1,8 +1,10 @@
 /**
  * Permit rules: "work within X m of <owner>'s assets needs permit P".
- * Loaded from the user's cheat sheet (.xlsx) or edited in the app; stored in the browser only.
+ * The built-in cheat sheet is used unless the rules have been edited in the app; edits are kept in
+ * this browser only, and "Reset" returns to the built-in rules.
  */
 import { normaliseOwner } from '../services/register';
+import { BUILT_IN_RULES } from './builtInRules';
 
 export interface PermitRule {
   id: string;
@@ -13,7 +15,8 @@ export interface PermitRule {
   permit: string;
 }
 
-const STORAGE_KEY = 'permits.rules.v1';
+/** Hand edits only. (v1 held rules imported from the cheat sheet; it is no longer read.) */
+const STORAGE_KEY = 'permits.rules.v2';
 let idCounter = 0;
 const newId = () => `r${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
@@ -34,61 +37,39 @@ export function ownerMatchesRule(serviceOwner: string | null, rule: PermitRule):
   return keys.includes(serviceOwner.trim().toLowerCase()) || keys.includes(normaliseOwner(serviceOwner).toLowerCase());
 }
 
-type Cell = string | number | boolean | Date | null | undefined;
-
-/**
- * Read rules from spreadsheet rows. Finds the header row containing "Owner", "Distance" and
- * "Permit" columns anywhere on the sheet and reads rows below it until a blank row.
- * Returns the rules plus any rows that couldn't be read.
- */
-export function parseRuleRows(rows: Cell[][]): { rules: PermitRule[]; problems: string[] } {
-  const text = (c: Cell) => (c === null || c === undefined ? '' : String(c).trim());
-  let header = -1;
-  let cols = { owner: -1, distance: -1, permit: -1 };
-  for (let r = 0; r < rows.length && header < 0; r++) {
-    const row = rows[r].map((c) => text(c).toLowerCase());
-    const owner = row.findIndex((c) => /owner/.test(c));
-    const distance = row.findIndex((c) => /distance|offset/.test(c));
-    const permit = row.findIndex((c) => /permit/.test(c));
-    if (owner >= 0 && distance >= 0 && permit >= 0) {
-      header = r;
-      cols = { owner, distance, permit };
-    }
-  }
-  if (header < 0) return { rules: [], problems: ['No header row with "Owner", "Distance" and "Permit" columns was found.'] };
-  const rules: PermitRule[] = [];
-  const problems: string[] = [];
-  for (let r = header + 1; r < rows.length; r++) {
-    const row = rows[r];
-    const owner = text(row[cols.owner]);
-    const permit = text(row[cols.permit]);
-    const rawDist = row[cols.distance];
-    if (!owner && !permit && (rawDist === null || rawDist === undefined || text(rawDist) === '')) {
-      if (rules.length) break; // blank row ends the table
-      continue;
-    }
-    const distance = typeof rawDist === 'number' ? rawDist : parseFloat(text(rawDist).replace(/[^0-9.]/g, ''));
-    if (!owner || !permit || !Number.isFinite(distance) || distance < 0) {
-      problems.push(`Row ${r + 1}: skipped (owner "${owner}", distance "${text(rawDist)}", permit "${permit}")`);
-      continue;
-    }
-    rules.push({ id: newId(), owner, distance, permit });
-  }
-  return { rules, problems };
-}
-
 export class PermitRules {
-  private rules: PermitRule[] = [];
+  private rules: PermitRule[] = builtIn();
+  private edited = false;
   private listeners: (() => void)[] = [];
 
-  constructor(private storage: Pick<Storage, 'getItem' | 'setItem'> | null = safeLocalStorage()) {
+  constructor(private storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null = safeLocalStorage()) {
     try {
       const raw = this.storage?.getItem(STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(parsed)) this.rules = parsed.filter((r) => r && typeof r.owner === 'string' && typeof r.distance === 'number');
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed)) {
+        this.rules = parsed.filter((r) => r && typeof r.owner === 'string' && typeof r.distance === 'number');
+        this.edited = true;
+      }
     } catch {
-      this.rules = [];
+      this.rules = builtIn();
     }
+  }
+
+  /** True when the rules differ from the built-in cheat sheet because they were edited in this browser. */
+  get isEdited(): boolean {
+    return this.edited;
+  }
+
+  /** Go back to the built-in cheat sheet. */
+  resetToBuiltIn(): void {
+    this.rules = builtIn();
+    this.edited = false;
+    try {
+      this.storage?.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    this.listeners.forEach((fn) => fn());
   }
 
   onChange(fn: () => void): void {
@@ -101,11 +82,6 @@ export class PermitRules {
 
   get maxDistance(): number {
     return this.rules.reduce((m, r) => Math.max(m, r.distance), 0);
-  }
-
-  replaceAll(rules: Omit<PermitRule, 'id'>[]): void {
-    this.rules = rules.map((r) => ({ ...r, id: newId() }));
-    this.save();
   }
 
   add(rule: Omit<PermitRule, 'id'>): void {
@@ -124,6 +100,7 @@ export class PermitRules {
   }
 
   private save() {
+    this.edited = true;
     try {
       this.storage?.setItem(STORAGE_KEY, JSON.stringify(this.rules));
     } catch {
@@ -131,6 +108,10 @@ export class PermitRules {
     }
     this.listeners.forEach((fn) => fn());
   }
+}
+
+function builtIn(): PermitRule[] {
+  return BUILT_IN_RULES.map((r) => ({ ...r, id: newId() }));
 }
 
 function safeLocalStorage(): Storage | null {

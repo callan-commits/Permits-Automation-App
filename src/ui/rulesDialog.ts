@@ -1,12 +1,10 @@
-/** Permit rules editor: import the cheat sheet (.xlsx) or edit rules by hand. */
-import readXlsxFile from 'read-excel-file/browser';
-import { type PermitRules, parseRuleRows } from '../permits/rules';
+/** Permit rules: the built-in cheat sheet, which can be edited by hand in this browser. */
+import type { PermitRules } from '../permits/rules';
 import { OWNERS } from '../services/dictionary';
 import { esc } from './panels';
 
 export class RulesDialog {
   private dialog: HTMLDialogElement;
-  private message = '';
 
   constructor(
     private rules: PermitRules,
@@ -21,7 +19,6 @@ export class RulesDialog {
   }
 
   open(): void {
-    this.message = '';
     this.render();
     this.dialog.showModal();
   }
@@ -35,11 +32,10 @@ export class RulesDialog {
       </form>
       <p class="muted dlg-intro">A permit is required when a work area is within the trigger distance (horizontally, including exactly that distance)
       of any asset belonging to the owner. Separate alternative names for one owner with “/”, e.g. <i>MTM/Metro Trains Melbourne</i>.
-      Rules are stored in this browser only.</p>
+      These are the permit cheat sheet's rules, built into Calvillo. Any changes you make here are kept in this browser only.</p>
       <div class="rules-actions">
-        <label class="btn primary">Import cheat sheet (.xlsx)<input type="file" accept=".xlsx" hidden class="rules-file" /></label>
         <button type="button" class="btn rules-add">+ Add rule</button>
-        ${this.message ? `<span class="rules-msg">${this.message}</span>` : ''}
+        ${this.rules.isEdited ? '<span class="rules-msg">Edited in this browser.</span><button type="button" class="btn rules-reset">Reset to built-in rules</button>' : '<span class="rules-msg muted">Built-in rules.</span>'}
       </div>
       <div class="dlg-body">
         ${
@@ -54,36 +50,15 @@ export class RulesDialog {
               <td><button type="button" class="btn small danger r-del" title="Delete rule">✕</button></td></tr>`,
             )
             .join('')}</tbody></table>`
-            : '<p class="needs" style="padding:8px">No rules yet: import your permit cheat sheet to start.</p>'
+            : '<p class="needs" style="padding:8px">No rules. Use <b>Reset to built-in rules</b> to restore the cheat sheet.</p>'
         }
       </div>
       <datalist id="rule-owner-options">${OWNERS.map((o) => `<option value="${esc(o.name)}">`).join('')}</datalist>`;
 
-    this.dialog.querySelector<HTMLInputElement>('.rules-file')!.addEventListener('change', async (e) => {
-      const input = e.target as HTMLInputElement;
-      const file = input.files?.[0];
-      input.value = '';
-      if (!file) return;
-      try {
-        const sheets = await readXlsxFile(file);
-        // Use the first sheet that contains a rules table.
-        for (const s of sheets) {
-          const { rules, problems } = parseRuleRows(s.data as never);
-          if (!rules.length) continue;
-          if (list.length && !confirm(`Replace the ${list.length} current rule${list.length === 1 ? '' : 's'} with ${rules.length} from ${file.name}?`)) return;
-          this.rules.replaceAll(rules);
-          this.message = `Imported ${rules.length} rule${rules.length === 1 ? '' : 's'} from ${esc(file.name)} (sheet “${esc(s.sheet)}”).${
-            problems.length ? ` <span class="svc-unknown">${problems.map(esc).join(' ')}</span>` : ''
-          }`;
-          this.render();
-          return;
-        }
-        this.toast(`No rules table (Owner / Distance / Permit columns) found in ${file.name}.`, true);
-      } catch (err) {
-        this.toast(`Could not read ${file.name}: ${(err as Error).message}`, true);
-      }
-    });
     this.dialog.querySelector('.rules-add')!.addEventListener('click', () => this.rules.add({ owner: '', distance: 0, permit: '' }));
+    this.dialog.querySelector('.rules-reset')?.addEventListener('click', () => {
+      if (confirm('Replace your edited rules with the built-in cheat sheet?')) this.rules.resetToBuiltIn();
+    });
     for (const tr of this.dialog.querySelectorAll<HTMLTableRowElement>('tr[data-id]')) {
       const id = tr.dataset.id!;
       tr.querySelector<HTMLInputElement>('.r-owner')!.addEventListener('change', (e) => this.rules.update(id, { owner: (e.target as HTMLInputElement).value.trim() }));
