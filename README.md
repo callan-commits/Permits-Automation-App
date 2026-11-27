@@ -40,6 +40,12 @@ Working:
   - "~" marks levels not surveyed to QL-A, as on existing markups.
   - Pits and other block symbols are treated as one item.
   - Unknown owner, type or RL is highlighted. Type over any value to correct it, or untick to leave a service off. Edits are remembered per drawing.
+  - **Joined services:** pieces of one service that meet end to end are joined into one row and one S number.
+    - Pieces join when their ends meet within 1 cm on the same layer, with the same owner, type and QL; a QL change keeps them apart.
+    - At a branch, only the straight-on pair is joined.
+    - Nothing is moved: RLs still come from each piece's own levels.
+    - **Split** / **Re-join** in the schedule undo or redo a join.
+  - **Drain obverts:** an obvert running along an invert (80% of its length within 0.3 m) is left out, and the invert is used.
   - Map markers (S1, S2…) show where each RL applies, with a dashed line showing the gap for services that don't cross. While a schedule is open, the markers are for that box.
   - **The schedule opens in a floating panel**, so the map stays usable alongside it. The map shifts so the box isn't hidden behind the panel. Drag the panel by its title bar and resize it from the bottom-right corner; it reopens where you left it. **⧉ Pop out** moves it into its own browser window (e.g. on a second screen). Edits and **Show on map** clicks there update the app, and **Back to app** docks it again. The browser must allow pop-ups for the site.
   - Layers can be marked **not a service** in the Services table (survey points, fences, contours…).
@@ -49,7 +55,7 @@ Working:
   - Alternative owner names are separated by "/" (e.g. `MTM/Metro Trains Melbourne`), and known abbreviations match.
   - Each box card shows the required permits. The schedule explains each trigger (owner, distance, rule, ID) and lists every rule with its nearest asset.
 - **A3 printout at 1:300** (**A3 printout** on a box card): a PDF centred on the box, using the map's rotation, imagery and visible layers.
-  - **Editable callouts**: standard PDF callout annotations, like those made in Bluebeam or Acrobat. There is one per crossing or closest point, with a coloured leader and an open arrow. Each callout reads "[owner] [asset type]", e.g. "VicTrack Comms", then "RL: ~45.100 QLB" (or "RL: [insert RL]"). The owner and type come from the survey, or from what was entered in the box's schedule against each S number.
+  - **Editable callouts**: standard PDF callout annotations, like those made in Bluebeam or Acrobat, with a coloured leader and an open arrow. There is one per service: at its shallowest crossing (highest RL) if it crosses the box, otherwise at its closest point. Each callout reads "[owner] [asset type]", e.g. "VicTrack Comms", then "RL: ~45.100 QLB" (or "RL: [insert RL]"). The owner and type come from the survey, or from what was entered in the box's schedule against each S number.
     - Services with no owner read "[insert service]".
     - Callouts still to complete are highlighted yellow; the rest are white.
   - **Callout layout**: callouts sit on a ring (an ellipse) around the work area, in the same clock order as their arrow tips, so leaders don't cross. Busy areas first enlarge the ring, then use a second ring out to the sheet edge. A final pass swaps or nudges callouts to remove any remaining crossings, and any leader running under another box. Boxes never overlap each other, the work area, another arrow tip, the legend, the north arrow or the scale bar.

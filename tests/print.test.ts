@@ -83,10 +83,11 @@ describe('callout text', () => {
     expect(calloutLines(row({ info: { ql: null }, rls: [{ text: null, source: null, at: [0, 0] }] }), 0)).toEqual(['VicTrack Comms', 'RL: [insert RL]']);
     expect(calloutLines(row({ rls: [{ text: null, source: null, at: [0, 0] }] }), 0)[1]).toBe('RL: [insert RL] QLB');
   });
-  it('makes one callout per RL point, flags missing RLs, skips excluded rows', () => {
+  it('makes one callout per service at its shallowest point, flags missing RLs, skips excluded rows', () => {
     const specs = calloutSpecs(
       [
-        row({ rls: [{ text: '~1.000', source: '3D line', at: [1, 1] }, { text: null, source: null, at: [2, 2] }] }),
+        row({ rls: [{ text: '~1.000', source: '3D line', at: [1, 1] }, { text: '~1.500', source: '3D line', at: [2, 2] }], calloutIndex: 1 }),
+        row({ key: 'n', rls: [{ text: null, source: null, at: [3, 3] }] }),
         row({ key: 'x', excluded: true }),
         row({ key: 'u', needs: { type: false, owner: true, rl: false }, info: { owner: null } }),
       ],
@@ -94,8 +95,8 @@ describe('callout text', () => {
       () => '#ff0000',
     );
     expect(specs.map((s) => [s.key, s.anchor, s.missingRl, s.needsService, s.lines[0]])).toEqual([
-      ['k#0', [10, 10], false, false, 'VicTrack Comms'],
-      ['k#1', [20, 20], true, false, 'VicTrack Comms'],
+      ['k#1', [20, 20], false, false, 'VicTrack Comms'],
+      ['n#0', [30, 30], true, false, 'VicTrack Comms'],
       ['u#0', [0, 0], false, true, '[insert service]'],
     ]);
     expect(specs[0].color).toEqual([1, 0, 0]);

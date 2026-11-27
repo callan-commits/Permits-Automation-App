@@ -204,7 +204,10 @@ async function openFile(name: string, buffer: ArrayBuffer) {
     busy('Preparing map…');
     await new Promise((r) => setTimeout(r, 0)); // let the message paint before the heavy step
     showDrawing(d);
-    toast(`Loaded ${name}: ${d.features.length.toLocaleString()} objects in ${((performance.now() - started) / 1000).toFixed(1)} s`);
+    const st = engine?.stats;
+    const joins = st && st.services ? ` · ${st.joined.toLocaleString()} line pieces joined into ${st.services.toLocaleString()} services` : '';
+    const obv = st && st.obvertsCovered ? ` · ${st.obvertsCovered} obverts on inverts (inverts used)` : '';
+    toast(`Loaded ${name}: ${d.features.length.toLocaleString()} objects in ${((performance.now() - started) / 1000).toFixed(1)} s${joins}${obv}`);
   } catch (err) {
     console.error(err);
     toast((err as Error).message, true);

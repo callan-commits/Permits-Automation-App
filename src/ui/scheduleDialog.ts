@@ -233,6 +233,8 @@ export class ScheduleDialog {
       <p class="muted dlg-intro">RLs are given where each service crosses the box outline, or at its closest point if it doesn't cross.
       “~” marks a level not surveyed to QL-A. <b class="needs">Highlighted</b> cells need your input. Type over any value to correct it.
       Untick <i>Include</i> to leave a service off the plan. Click a row's ID to show it on the map.
+      Pieces of one service that meet end to end are joined into one row (same layer, owner, type and QL); use <i>Split</i> if a join is wrong.
+      Each service gets one callout on the printout, at its shallowest crossing.
       The owner and type you enter here are used on the printout callouts (e.g. “VicTrack Comms”); services left without an owner print as “[insert service]”, highlighted yellow.
       ${needing ? `<br><b class="svc-unknown">${needing} service${needing === 1 ? '' : 's'} need${needing === 1 ? 's' : ''} input.</b>` : ''}</p>
       ${this.permits(permits, ruleCount, rows)}${
@@ -270,6 +272,8 @@ export class ScheduleDialog {
         this.edits.set(key, { excluded: !(e.target as HTMLInputElement).checked }),
       );
       tr.querySelector<HTMLButtonElement>('.sch-show')!.addEventListener('click', () => this.onShowRow(row));
+      tr.querySelector('.sch-split')?.addEventListener('click', () => this.edits.set(key, { split: true }));
+      tr.querySelector('.sch-rejoin')?.addEventListener('click', () => row.splitFrom && this.edits.set(row.splitFrom, { split: undefined }));
     }
   }
 
@@ -306,10 +310,18 @@ export class ScheduleDialog {
       ${cell('sch-type', 'sched-type-options', i.type, r.needs.type)}
       ${cell('sch-owner', 'sched-owner-options', i.owner, r.needs.owner)}
       <td>${i.ql ? `QL${esc(i.ql)}` : '<span class="muted">–</span>'}</td>
-      <td>${i.description ? `${esc(i.description)}<br>` : ''}<span class="src">${esc(run.layer)}${run.block ? ` · ${esc(run.block)}` : ''}${i.overhead ? ' · <b>overhead</b>' : ''}</span></td>
+      <td>${i.description ? `${esc(i.description)}<br>` : ''}<span class="src">${esc(run.layer)}${run.block ? ` · ${esc(run.block)}` : ''}${i.overhead ? ' · <b>overhead</b>' : ''}</span>${
+        r.joinedPieces > 1
+          ? `<div class="src">Joined from ${r.joinedPieces} pieces <button type="button" class="btn small sch-split" title="Schedule the pieces separately">Split</button></div>`
+          : r.splitFrom
+            ? `<div class="src">Piece of a split service <button type="button" class="btn small sch-rejoin" title="Join the pieces back into one service">Re-join</button></div>`
+            : ''
+      }</td>
       <td>${WHERE[r.entry.relation]}${r.rls.length > 1 ? ` (${r.rls.length}×)` : ''}</td>
       <td class="num">${r.entry.distance === 0 ? '0.00 m' : `${r.entry.distance.toFixed(2)} m`}</td>
-      <td class="${rlMissing ? 'needs-input' : ''}"><input class="sch-rl" value="${esc(rl)}" placeholder="No RL found: enter" /><div class="src">${esc(rlSrc)}</div></td>
+      <td class="${rlMissing ? 'needs-input' : ''}"><input class="sch-rl" value="${esc(rl)}" placeholder="No RL found: enter" /><div class="src">${esc(rlSrc)}${
+        r.rls.length > 1 && r.rls[r.calloutIndex]?.text ? `<br>Printout: ${esc(r.rls[r.calloutIndex].text!)} (shallowest)` : ''
+      }</div></td>
       <td class="oh-cell"><input type="checkbox" class="sch-use" ${r.excluded ? '' : 'checked'} /></td>
     </tr>`;
   }

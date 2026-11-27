@@ -365,3 +365,10 @@ export function closestBetweenSegments(a: XY, b: XY, c: XY, d: XY): { t: number;
   ];
   return candidates.reduce((best, cnd) => (cnd.distance < best.distance ? cnd : best));
 }
+
+/** A line (4+ points) whose last point is its first: a closed outline. */
+export function isClosedRing(c: XY[]): boolean {
+  if (c.length < 4) return false;
+  const [a, b] = [c[0], c[c.length - 1]];
+  return Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6;
+}

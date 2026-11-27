@@ -75,24 +75,23 @@ export function calloutLines(row: ScheduleRow, pointIndex: number): string[] {
   return [serviceLine(row.info), `RL: ${rl ?? INSERT_RL}${ql}`];
 }
 
-/** Callouts for the rows (one per RL point), anchors converted to page points. */
+/** Callouts for the rows (one per service, at its shallowest crossing), anchors converted to page points. */
 export function calloutSpecs(rows: ScheduleRow[], toPage: (ground: XY) => XY, colourOf: (row: ScheduleRow) => string): CalloutSpec[] {
   const out: CalloutSpec[] = [];
   for (const row of rows) {
     if (row.excluded) continue;
     const color = hexToRgb(colourOf(row));
-    // An edited RL replaces the computed ones and is shown once.
-    const points = row.rls.length ? row.rls : [];
-    points.forEach((p, idx) => {
-      const lines = calloutLines(row, idx);
-      out.push({
-        key: `${row.key}#${idx}`,
-        lines,
-        anchor: toPage(p.at),
-        color,
-        missingRl: p.text === null,
-        needsService: needsService(row.info),
-      });
+    // One callout per service: at its shallowest crossing (highest RL), or its only point.
+    const idx = Math.min(row.calloutIndex ?? 0, row.rls.length - 1);
+    const p = row.rls[idx];
+    if (!p) continue;
+    out.push({
+      key: `${row.key}#${idx}`,
+      lines: calloutLines(row, idx),
+      anchor: toPage(p.at),
+      color,
+      missingRl: p.text === null,
+      needsService: needsService(row.info),
     });
   }
   return out;

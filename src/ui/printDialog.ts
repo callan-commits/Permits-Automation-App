@@ -27,9 +27,10 @@ export class PrintDialog {
     const { box, rows } = data;
     const svc = rowsForPlan(rows, 'services');
     const oh = rowsForPlan(rows, 'overheads');
-    const pts = (rs: ScheduleRow[]) => rs.reduce((n, r) => n + r.rls.length, 0);
-    const noRl = (rs: ScheduleRow[]) => rs.reduce((n, r) => n + r.rls.filter((x) => !x.text).length, 0);
-    const toDo = (rs: ScheduleRow[]) => rs.filter((r) => !r.excluded && needsService(r.info)).reduce((n, r) => n + r.rls.length, 0);
+    // One callout per service, at its shallowest crossing.
+    const pts = (rs: ScheduleRow[]) => rs.filter((r) => r.rls.length).length;
+    const noRl = (rs: ScheduleRow[]) => rs.filter((r) => r.rls.length && !r.rls[Math.min(r.calloutIndex, r.rls.length - 1)].text).length;
+    const toDo = (rs: ScheduleRow[]) => rs.filter((r) => !r.excluded && r.rls.length && needsService(r.info)).length;
     const notes = (rs: ScheduleRow[]) =>
       [toDo(rs) ? `${toDo(rs)} to complete (yellow)` : '', noRl(rs) ? `${noRl(rs)} without an RL` : ''].filter(Boolean).join(', ');
     const fit = fitsOnSheet(box.ring, this.rotation());
@@ -39,6 +40,7 @@ export class PrintDialog {
       <div class="dlg-body print-body">
         <p class="muted">The sheet is centred on the box. It uses the map's current rotation (${deg}°), background imagery and visible layers.
         Callouts are editable PDF annotations: move them, resize them or change the text in Bluebeam or Acrobat.
+        There is one callout per service: where it crosses the box (at the shallowest crossing if it crosses more than once), or at its closest point.
         Each callout names the owner and asset type (e.g. <b>VicTrack Comms</b>), from the survey or from what you entered in the schedule, then the RL.
         Services with no owner say <b>${INSERT_SERVICE}</b> and are highlighted yellow for you to complete.
         To fill them in first, open the box's <b>Schedule</b> and enter the owner against each S number.

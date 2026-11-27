@@ -85,14 +85,30 @@ export function findType(text: string): string | null {
 }
 
 /** Owner name as displayed: the known name if recognised, otherwise the text as given. */
+// Matching a name against the dictionary is slow-ish and big surveys repeat the same few names
+// thousands of times, so results are cached by the raw text.
+const ownerCache = new Map<string, string>();
+const typeCache = new Map<string, string>();
+const CACHE_LIMIT = 20000;
+
 export function normaliseOwner(raw: string): string {
-  const trimmed = raw.trim();
-  return findOwner(trimmed)?.name ?? trimmed;
+  let v = ownerCache.get(raw);
+  if (v === undefined) {
+    const trimmed = raw.trim();
+    v = findOwner(trimmed)?.name ?? trimmed;
+    if (ownerCache.size < CACHE_LIMIT) ownerCache.set(raw, v);
+  }
+  return v;
 }
 
 export function normaliseType(raw: string): string {
-  const trimmed = raw.trim();
-  return findType(trimmed) ?? trimmed;
+  let v = typeCache.get(raw);
+  if (v === undefined) {
+    const trimmed = raw.trim();
+    v = findType(trimmed) ?? trimmed;
+    if (typeCache.size < CACHE_LIMIT) typeCache.set(raw, v);
+  }
+  return v;
 }
 
 /** Quality level letter from text such as "QL-B", "QLB", "B", "Quality Level B". */
@@ -148,7 +164,16 @@ function guessUncached(layer: string): LayerGuess {
 
 // ---------- object data ----------
 
-const fieldKey = (k: string) => k.toUpperCase().replace(/[^A-Z0-9]/g, '');
+// Field names repeat across every object in a survey: cache their normalised form.
+const fieldKeyCache = new Map<string, string>();
+const fieldKey = (k: string) => {
+  let v = fieldKeyCache.get(k);
+  if (v === undefined) {
+    v = k.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (fieldKeyCache.size < 20000) fieldKeyCache.set(k, v);
+  }
+  return v;
+};
 
 /** Values surveys use for "not known": treated as no value, so the field is flagged for input. */
 export function isPlaceholder(v: string): boolean {
@@ -156,12 +181,19 @@ export function isPlaceholder(v: string): boolean {
 }
 
 /** First non-empty value among the object's attributes / data fields with one of these names. */
+const nameSets = new WeakMap<string[], Set<string>>();
+
 export function dataValue(meta: CadMeta | undefined, names: string[]): string | null {
   if (!meta) return null;
+  let wanted = nameSets.get(names);
+  if (!wanted) nameSets.set(names, (wanted = new Set(names)));
+  // Plain loops: 12d strings can carry 80+ attributes, and this runs for every object.
   for (const source of [meta.attributes, meta.fields]) {
     if (!source) continue;
-    for (const [k, v] of Object.entries(source)) {
-      if (names.includes(fieldKey(k)) && v && v.trim() && !isPlaceholder(v)) return v.trim();
+    for (const k in source) {
+      if (!wanted.has(fieldKey(k))) continue;
+      const v = source[k];
+      if (v && v.trim() && !isPlaceholder(v)) return v.trim();
     }
   }
   return null;
@@ -174,15 +206,29 @@ export interface DataInfo {
   description: string | null;
 }
 
+const DESCRIPTION_SET = new Set(DESCRIPTION_FIELDS);
+
+/** Owner, type, QL and description from an object's data. Cached per object (survey data doesn't change). */
+const infoCache = new WeakMap<CadMeta, DataInfo>();
 export function infoFromData(meta: CadMeta | undefined): DataInfo {
+  if (!meta) return readInfo(undefined);
+  let v = infoCache.get(meta);
+  if (!v) infoCache.set(meta, (v = readInfo(meta)));
+  return v;
+}
+
+function readInfo(meta: CadMeta | undefined): DataInfo {
   const owner = dataValue(meta, OWNER_FIELDS);
   const type = dataValue(meta, TYPE_FIELDS);
   const ql = parseQl(dataValue(meta, QL_FIELDS));
   const descParts: string[] = [];
   if (meta) {
     for (const source of [meta.attributes, meta.fields]) {
-      for (const [k, v] of Object.entries(source ?? {})) {
-        if (DESCRIPTION_FIELDS.includes(fieldKey(k)) && v.trim() && !descParts.includes(v.trim())) descParts.push(v.trim());
+      if (!source) continue;
+      for (const k in source) {
+        if (!DESCRIPTION_SET.has(fieldKey(k))) continue;
+        const v = source[k].trim();
+        if (v && !descParts.includes(v)) descParts.push(v);
       }
     }
   }

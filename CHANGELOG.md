@@ -10,6 +10,20 @@ The version shows at the bottom right of the app (hover over it for the build nu
 1. **Look at it:** on GitHub, pick `known-good/v0.5.0` in the branch list. **Code → Download ZIP** gets that exact version.
 2. **Put the live app back to it:** ask Claude to "revert to v0.5.0", or run `git revert` on the commits made since. This is done through a pull request, as usual, so nothing is lost and it can be undone.
 
+## v0.8.0 (27 Nov 2026)
+
+- **One service, one row:** surveys often break a cable or pipe into pieces that meet end to end. These pieces are now joined into one service when the survey loads.
+  - **When pieces join:** their ends meet within 1 cm, and they're on the same layer with the same owner, type and quality level. A change of QL keeps them apart.
+  - **Corners and branches:** corners are fine. Where three or more pieces of one service meet, only the pair that carries straight on is joined.
+  - **Never joined:** pit outlines and symbols.
+  - **Accuracy:** nothing is moved. Crossing points and RLs still come from each piece's own levels.
+  - **In the schedule:** a joined service shows "Joined from N pieces" with a **Split** button, and its pieces offer **Re-join**.
+  - **Load message:** shows how many pieces were joined.
+  - **On your surveys:** 685 pieces joined into 171 services in 0008, and 6,590 into 2,676 in 0006.
+- **One callout per service:** at the shallowest crossing (highest RL) if it crosses the box more than once, otherwise at its closest point. The schedule shows which RL the printout uses.
+- **Drain inverts and obverts:** where an obvert line runs along an invert (80% of its length within 0.3 m), only the invert is scheduled and called out. Obvert-only drains are kept. 22 such obverts were found in 0006.
+- **Faster loading:** owner, type and QL lookups are cached, so large 12d surveys load and redraw faster (0006: 14 s → 11 s).
+
 ## v0.7.0 (27 Nov 2026)
 
 - **Callouts name the service:** each callout now reads "[owner] [asset type]", e.g. "VicTrack Comms", then the RL and QL as before.
