@@ -233,6 +233,7 @@ export class ScheduleDialog {
       <p class="muted dlg-intro">RLs are given where each service crosses the box outline, or at its closest point if it doesn't cross.
       “~” marks a level not surveyed to QL-A. <b class="needs">Highlighted</b> cells need your input. Type over any value to correct it.
       Untick <i>Include</i> to leave a service off the plan. Click a row's ID to show it on the map.
+      The owner and type you enter here are used on the printout callouts (e.g. “VicTrack Comms”); services left without an owner print as “[insert service]”, highlighted yellow.
       ${needing ? `<br><b class="svc-unknown">${needing} service${needing === 1 ? '' : 's'} need${needing === 1 ? 's' : ''} input.</b>` : ''}</p>
       ${this.permits(permits, ruleCount, rows)}${
         rows.length

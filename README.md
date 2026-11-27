@@ -49,7 +49,9 @@ Working:
   - Alternative owner names are separated by "/" (e.g. `MTM/Metro Trains Melbourne`), and known abbreviations match.
   - Each box card shows the required permits. The schedule explains each trigger (owner, distance, rule, ID) and lists every rule with its nearest asset.
 - **A3 printout at 1:300** (**A3 printout** on a box card): a PDF centred on the box, using the map's rotation, imagery and visible layers.
-  - **Editable callouts**: standard PDF callout annotations, like those made in Bluebeam or Acrobat. There is one per crossing or closest point, with a coloured leader and an open arrow. Every callout is yellow and reads "[insert service]" then "RL: ~45.100 QLB" (or "RL: [insert RL]"), so the engineer fills in and checks each service.
+  - **Editable callouts**: standard PDF callout annotations, like those made in Bluebeam or Acrobat. There is one per crossing or closest point, with a coloured leader and an open arrow. Each callout reads "[owner] [asset type]", e.g. "VicTrack Comms", then "RL: ~45.100 QLB" (or "RL: [insert RL]"). The owner and type come from the survey, or from what was entered in the box's schedule against each S number.
+    - Services with no owner read "[insert service]".
+    - Callouts still to complete are highlighted yellow; the rest are white.
   - **Callout layout**: callouts sit on a ring (an ellipse) around the work area, in the same clock order as their arrow tips, so leaders don't cross. Busy areas first enlarge the ring, then use a second ring out to the sheet edge. A final pass swaps or nudges callouts to remove any remaining crossings, and any leader running under another box. Boxes never overlap each other, the work area, another arrow tip, the legend, the north arrow or the scale bar.
   - The work area is an editable polygon: bright green, filled, at 40% opacity (the same as on the map).
   - **Legend** (top right, left of the north arrow): an editable text box with a bold "Legend" title, and below it an editable "[insert excavation]" box with a swatch in the work area's colour.

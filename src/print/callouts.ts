@@ -21,6 +21,8 @@ export interface CalloutSpec {
   color: [number, number, number];
   /** No RL was found for this point (the callout says "[insert RL]"). */
   missingRl: boolean;
+  /** Owner or asset type unknown: the callout says [insert service] / [insert type] and is highlighted. */
+  needsService: boolean;
 }
 
 export interface Rect {
@@ -45,13 +47,32 @@ export const CALLOUT_PAD = 4;
 /** Placeholder text the engineer replaces in their PDF editor. */
 export const INSERT_SERVICE = '[insert service]';
 export const INSERT_RL = '[insert RL]';
+export const INSERT_TYPE = '[insert type]';
+
+/**
+ * First callout line: "[owner] [asset type]", e.g. "VicTrack Comms", from the survey or from what was
+ * entered in the schedule. With no owner it is "[insert service]" for the engineer to complete.
+ */
+export function serviceLine(info: Pick<ScheduleRow['info'], 'owner' | 'type'>): string {
+  if (!info.owner) return INSERT_SERVICE;
+  if (!info.type) return `${info.owner} ${INSERT_TYPE}`;
+  // Don't repeat the type when the owner's name already says it: "Multinet Gas", not "Multinet Gas Gas".
+  const t = info.type.toLowerCase();
+  const said = info.owner.toLowerCase().split(/[^a-z0-9]+/).some((w) => w && (w === t || (t.length >= 4 && w.startsWith(t))));
+  return said ? info.owner : `${info.owner} ${info.type}`;
+}
+
+/** True when the callout's first line still has something to fill in. */
+export function needsService(info: Pick<ScheduleRow['info'], 'owner' | 'type'>): boolean {
+  return !info.owner || !info.type;
+}
 const KNEE = 12;
 
 /** Callout text lines for one RL point of a schedule row. */
 export function calloutLines(row: ScheduleRow, pointIndex: number): string[] {
   const ql = row.info.ql ? ` QL${row.info.ql}` : '';
   const rl = row.rls[pointIndex]?.text ?? null;
-  return [INSERT_SERVICE, `RL: ${rl ?? INSERT_RL}${ql}`];
+  return [serviceLine(row.info), `RL: ${rl ?? INSERT_RL}${ql}`];
 }
 
 /** Callouts for the rows (one per RL point), anchors converted to page points. */
@@ -70,6 +91,7 @@ export function calloutSpecs(rows: ScheduleRow[], toPage: (ground: XY) => XY, co
         anchor: toPage(p.at),
         color,
         missingRl: p.text === null,
+        needsService: needsService(row.info),
       });
     });
   }

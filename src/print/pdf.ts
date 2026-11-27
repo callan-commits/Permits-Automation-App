@@ -44,8 +44,9 @@ const hex = (c: [number, number, number]) => '#' + c.map((v) => Math.round(v * 2
 let nmCounter = 0;
 const uid = () => `pa-${Date.now().toString(36)}-${(nmCounter++).toString(36)}`;
 
-/** Every callout is highlighted yellow: each one must be checked and completed by the engineer. */
+/** Callouts still to complete ([insert service] / [insert type]) are highlighted yellow; the rest are white. */
 export const FILL_CALLOUT: [number, number, number] = [1, 0.94, 0.4];
+export const FILL_CALLOUT_DONE: [number, number, number] = [1, 1, 1];
 
 /** Work area (excavation) markup: bright green, filled, 40% opacity. The legend swatch matches it. */
 export const WORK_AREA_COLOUR: [number, number, number] = [0, 1, 0];
@@ -120,7 +121,7 @@ export async function buildPrintoutPdf(input: PrintoutInput): Promise<Uint8Array
   // centre: datum and scale, note
   const centre = `Datum / Projection: ${input.datum}   ·   Scale 1:${frame.spec.scale} at A3`;
   page.drawText(centre, { x: pageW / 2 - font.widthOfTextAtSize(centre, 9) / 2, y: fy1, size: 9, font });
-  const note = 'Callouts are editable. Complete [insert service] and check every RL before use.';
+  const note = 'Callouts are editable. Complete those highlighted yellow and check every callout before use.';
   page.drawText(note, { x: pageW / 2 - font.widthOfTextAtSize(note, 8) / 2, y: fy2, size: 8, font, color: rgb(0.35, 0.35, 0.35) });
   // right: printed date
   const printed = `Printed ${input.printedAt.toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
@@ -228,7 +229,7 @@ export async function buildPrintoutPdf(input: PrintoutInput): Promise<Uint8Array
 
 function calloutAnnot(ctx: PDFDocument['context'], c: PlacedCallout, font: PDFFont, fontRef: PDFRef, now: string) {
   const { box } = c;
-  const fill = FILL_CALLOUT;
+  const fill = c.needsService ? FILL_CALLOUT : FILL_CALLOUT_DONE;
   // Rect covers the box, the leader and the arrow head.
   const xs = [box.x, box.x + box.w, c.anchor[0], c.knee[0], c.attach[0]];
   const ys = [box.y, box.y + box.h, c.anchor[1], c.knee[1], c.attach[1]];
