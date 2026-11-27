@@ -2,7 +2,7 @@
 import type { CadDrawing } from '../cad/types';
 import { OWNERS, SERVICE_TYPES } from '../services/dictionary';
 import type { InfoSource, LayerSummary, ServiceRegister } from '../services/register';
-import { esc } from './panels';
+import { layerLabel, esc } from './panels';
 
 const SOURCE_LABEL: Record<InfoSource, string> = {
   edit: 'your edit',
@@ -96,7 +96,7 @@ export class ServicesDialog {
     const edited = Object.keys(r.setting).length > 0;
     return `<tr data-layer="${esc(r.layer)}" class="${r.incomplete ? 'incomplete' : ''}${r.ignored ? ' ignored' : ''}">
       <td class="oh-cell"><input type="checkbox" class="svc-use" ${r.ignored ? '' : 'checked'} /></td>
-      <td class="layer-cell"><span class="swatch" style="background:${colour}"></span>${esc(r.layer)}<div class="src">${r.featureCount} object${r.featureCount === 1 ? '' : 's'}</div></td>
+      <td class="layer-cell" title="${esc(r.layer)}"><span class="swatch" style="background:${colour}"></span>${layerLabel(r.layer)}<div class="src">${r.featureCount} object${r.featureCount === 1 ? '' : 's'}</div></td>
       ${r.ignored ? '<td colspan="3" class="muted">Not a service: left out of schedules, callouts and permits</td>' : `
       ${field('svc-type', 'service-type-options', r.type, 'Unknown: fill in', r.source.type, mixed(r.dataTypes))}
       ${field('svc-owner', 'owner-options', r.owner, 'Unknown: fill in', r.source.owner, mixed(r.dataOwners))}`}

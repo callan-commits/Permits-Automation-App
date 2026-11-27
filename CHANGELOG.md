@@ -10,6 +10,18 @@ The version shows at the bottom right of the app (hover over it for the build nu
 1. **Look at it:** on GitHub, pick `known-good/v0.5.0` in the branch list. **Code → Download ZIP** gets that exact version.
 2. **Put the live app back to it:** ask Claude to "revert to v0.5.0", or run `git revert` on the commits made since. This is done through a pull request, as usual, so nothing is lost and it can be undone.
 
+## v0.6.0 (27 Nov 2026)
+
+- **12d surveys:** opens 12d Model files (.12daz, and plain .12da) as well as DWG and DXF.
+  - Each 12d model becomes a layer. Each string's own attributes become its object data, so owner, service type and quality level come straight from the survey (`OWNER` / `TYPE` / `QUALITY_LEVEL`, or VicTrack's `VT_UTL_…` fields).
+  - Levels come from the strings' 3D points, so RLs at crossings are interpolated as for 3D polylines.
+  - Arcs (rounded pit outlines), circles and single-point strings are drawn.
+  - Abandoned and removed utilities are shown like any other layer.
+  - Large exports are read in pieces in the background: a 33 MB .12daz (about 690 MB unzipped, 30,695 strings) opens in about 14 s.
+- **Owner values:** values meaning "not known" ("Unknown", "NA", "TBC"…) count as no owner, so those services are highlighted for input (DWG too). More owner spellings are recognised: ARTC, Mobil/ExxonMobil, FibreconX, Victrack, Vline.
+- **Layer names:** long names such as 12d model paths show their last part first in the layer list and the Services table (full name on hover).
+- **Open button:** the button is now **Open survey**.
+
 ## ✅ v0.5.0 (27 Nov 2026), known good
 
 The first numbered version, covering everything built so far (pull requests #1–#12, plus this one).

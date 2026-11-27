@@ -36,6 +36,16 @@ export function renderDrawingInfo(el: HTMLElement, drawing: CadDrawing, crsWarni
     }`;
 }
 
+/**
+ * Layer name for the list. 12d model paths ("EFU Existing Utility/Abandoned/Comms/UT Comms UG QL A")
+ * are long and differ at the end, so show the last part first, then the folders in grey.
+ */
+export function layerLabel(name: string): string {
+  const parts = name.split('/').map((p) => p.trim()).filter(Boolean);
+  if (parts.length < 2) return esc(name);
+  return `${esc(parts[parts.length - 1])} <span class="layer-path">${esc(parts.slice(0, -1).join(' / '))}</span>`;
+}
+
 export function renderLayerList(list: HTMLElement, drawing: CadDrawing | null, utilities: UtilityLayers, filter: string): void {
   list.innerHTML = '';
   if (!drawing) return;
@@ -46,7 +56,7 @@ export function renderLayerList(list: HTMLElement, drawing: CadDrawing | null, u
     li.innerHTML = `<label title="${esc(layer.name)}${layer.hiddenInDrawing ? ' (off/frozen in the drawing)' : ''}">
       <input type="checkbox" ${utilities.isLayerVisible(layer.name) ? 'checked' : ''} />
       <span class="swatch" style="background:${layer.color}"></span>
-      <span class="layer-name">${esc(layer.name)}${layer.hiddenInDrawing ? ' <span class="muted">(off)</span>' : ''}</span>
+      <span class="layer-name">${layerLabel(layer.name)}${layer.hiddenInDrawing ? ' <span class="muted">(off)</span>' : ''}</span>
       <span class="layer-n">${layer.featureCount}</span>
     </label>`;
     li.querySelector('input')!.addEventListener('change', (e) => {

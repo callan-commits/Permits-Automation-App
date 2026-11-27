@@ -16,9 +16,9 @@
         <span class="brand-name">Calvillo</span>
         <span class="tag">prototype</span>
       </a>
-      <label class="btn primary" title="Open a utility survey drawing (.dwg or .dxf)">
-        Open DWG / DXF
-        <input id="file-input" type="file" accept=".dwg,.dxf" hidden />
+      <label class="btn primary" title="Open a utility survey: DWG, DXF or 12d (.12daz / .12da)">
+        Open survey
+        <input id="file-input" type="file" accept=".dwg,.dxf,.12daz,.12da" hidden />
       </label>
       <span class="sep"></span>
       <button id="draw-rect" class="btn tool" title="Click two opposite corners (or click-drag) to draw a box square to the screen">▭ Box</button>
@@ -72,7 +72,7 @@
           <button id="rot-north" class="btn small" title="Grid north up">North up</button>
           <button id="rot-box" class="btn small" title="Rotate so the selected box runs left to right">Align to box</button>
         </div>
-        <div id="drop-overlay" class="drop-overlay" hidden>Drop DWG / DXF to open</div>
+        <div id="drop-overlay" class="drop-overlay" hidden>Drop a DWG, DXF or 12daz to open</div>
         <div id="busy" class="busy" hidden><div class="spinner"></div><span id="busy-text">Reading drawing…</span></div>
         <div id="toast" class="toast" hidden></div>
       </div>

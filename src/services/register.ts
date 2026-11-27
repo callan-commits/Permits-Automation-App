@@ -150,13 +150,18 @@ function guessUncached(layer: string): LayerGuess {
 
 const fieldKey = (k: string) => k.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+/** Values surveys use for "not known": treated as no value, so the field is flagged for input. */
+export function isPlaceholder(v: string): boolean {
+  return /^\s*(unknown|unk|unidentified|unclassified|na|n\/a|n\.a\.|none|nil|null|tbc|tba|tbd|-+|\?+)\s*$/i.test(v);
+}
+
 /** First non-empty value among the object's attributes / data fields with one of these names. */
 export function dataValue(meta: CadMeta | undefined, names: string[]): string | null {
   if (!meta) return null;
   for (const source of [meta.attributes, meta.fields]) {
     if (!source) continue;
     for (const [k, v] of Object.entries(source)) {
-      if (names.includes(fieldKey(k)) && v && v.trim()) return v.trim();
+      if (names.includes(fieldKey(k)) && v && v.trim() && !isPlaceholder(v)) return v.trim();
     }
   }
   return null;

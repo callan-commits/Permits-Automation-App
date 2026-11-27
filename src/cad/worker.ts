@@ -1,12 +1,14 @@
 /// <reference lib="webworker" />
 /**
- * Web Worker: parses DWG/DXF with LibreDWG (WebAssembly) and converts it to map geometry.
+ * Web Worker: parses DWG/DXF with LibreDWG (WebAssembly), or 12d .12da/.12daz files, and converts them
+ * to map geometry.
  * Runs off the main thread so large surveys don't freeze the UI. Files never leave the browser.
  */
 import { createModule, Dwg_File_Type, LibreDwg } from '@mlightcad/libredwg-web';
 // The package's exports map hides its .wasm file, so reference it by path. Vite copies it into the build.
 import wasmUrl from '../../node_modules/@mlightcad/libredwg-web/wasm/libredwg-web.wasm?url';
 import { convertDatabase } from './convert';
+import { is12dFile, parse12d } from './twelveD';
 import type { CadDrawing } from './types';
 
 export interface ParseRequest {
@@ -39,6 +41,12 @@ self.onmessage = async (ev: MessageEvent<ParseRequest>) => {
   const post = (msg: ParseResponse) => (self as unknown as Worker).postMessage(msg);
   const stage = (text: string) => post({ id, stage: text });
   try {
+    if (is12dFile(fileName)) {
+      const drawing = parse12d(new Uint8Array(buffer), fileName, stage);
+      stage(`Sending ${drawing.features.length.toLocaleString()} objects to the map…`);
+      post({ id, ok: true, drawing });
+      return;
+    }
     stage('Starting DWG reader…');
     const lib = await getLib();
     const kind = detectFileType(fileName, new Uint8Array(buffer));
