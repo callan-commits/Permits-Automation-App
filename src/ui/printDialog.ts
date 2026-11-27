@@ -4,7 +4,7 @@ import type { PlanKind, PrintoutResult } from '../print/printout';
 import { fitsOnSheet, rowsForPlan } from '../print/planRules';
 import type { ScheduleRow } from '../services/scheduleModel';
 import { esc } from './panels';
-import { INSERT_RL, INSERT_SERVICE } from '../print/callouts';
+import { INSERT_RL, INSERT_SERVICE, needsService } from '../print/callouts';
 
 export class PrintDialog {
   private dialog: HTMLDialogElement;
@@ -29,6 +29,9 @@ export class PrintDialog {
     const oh = rowsForPlan(rows, 'overheads');
     const pts = (rs: ScheduleRow[]) => rs.reduce((n, r) => n + r.rls.length, 0);
     const noRl = (rs: ScheduleRow[]) => rs.reduce((n, r) => n + r.rls.filter((x) => !x.text).length, 0);
+    const toDo = (rs: ScheduleRow[]) => rs.filter((r) => !r.excluded && needsService(r.info)).reduce((n, r) => n + r.rls.length, 0);
+    const notes = (rs: ScheduleRow[]) =>
+      [toDo(rs) ? `${toDo(rs)} to complete (yellow)` : '', noRl(rs) ? `${noRl(rs)} without an RL` : ''].filter(Boolean).join(', ');
     const fit = fitsOnSheet(box.ring, this.rotation());
     const deg = Math.round(((this.rotation() * 180) / Math.PI) * 10) / 10;
     this.dialog.innerHTML = `
@@ -36,10 +39,12 @@ export class PrintDialog {
       <div class="dlg-body print-body">
         <p class="muted">The sheet is centred on the box. It uses the map's current rotation (${deg}°), background imagery and visible layers.
         Callouts are editable PDF annotations: move them, resize them or change the text in Bluebeam or Acrobat.
-        Every callout is yellow and says <b>${INSERT_SERVICE}</b> for the engineer to complete; RLs come from the survey.
+        Each callout names the owner and asset type (e.g. <b>VicTrack Comms</b>), from the survey or from what you entered in the schedule, then the RL.
+        Services with no owner say <b>${INSERT_SERVICE}</b> and are highlighted yellow for you to complete.
+        To fill them in first, open the box's <b>Schedule</b> and enter the owner against each S number.
         The page is calibrated, so PDF measuring tools read metres.</p>
         ${fit.fits ? '' : `<p class="svc-unknown">⚠ The box (${fit.boxW.toFixed(1)} × ${fit.boxH.toFixed(1)} m on the sheet) is bigger than one A3 sheet at 1:300 (${fit.sheetW.toFixed(0)} × ${fit.sheetH.toFixed(0)} m). Parts of it will be cut off. Try rotating the map (Align to box) or splitting the box.</p>`}
-        <label class="check"><input type="checkbox" class="pk-services" checked /> <b>Services plan</b>: ${svc.length} service${svc.length === 1 ? '' : 's'}, ${pts(svc)} callout${pts(svc) === 1 ? '' : 's'}${noRl(svc) ? ` <span class="svc-unknown">(${noRl(svc)} without an RL)</span>` : ''}</label>
+        <label class="check"><input type="checkbox" class="pk-services" checked /> <b>Services plan</b>: ${svc.length} service${svc.length === 1 ? '' : 's'}, ${pts(svc)} callout${pts(svc) === 1 ? '' : 's'}${notes(svc) ? ` <span class="svc-unknown">(${notes(svc)})</span>` : ''}</label>
         <label class="check"><input type="checkbox" class="pk-overheads" ${oh.length ? 'checked' : 'disabled'} /> <b>Overheads plan</b>: ${
           oh.length ? `${oh.length} overhead service${oh.length === 1 ? '' : 's'}, ${pts(oh)} callout${pts(oh) === 1 ? '' : 's'}` : '<span class="muted">no overhead services within 10 m</span>'
         }</label>
@@ -69,8 +74,10 @@ export class PrintDialog {
         this.urls.push(url);
         const crowded = res.callouts.filter((c) => c.crowded).length;
         const noRl = res.callouts.filter((c) => c.missingRl).length;
+        const toComplete = res.callouts.filter((c) => c.needsService).length;
         const notes = [
           `${res.callouts.length} callout${res.callouts.length === 1 ? '' : 's'}`,
+          toComplete ? `<span class="svc-unknown">${toComplete} to complete (highlighted yellow)</span>` : '',
           noRl ? `<span class="svc-unknown">${noRl} without an RL (shown as ${INSERT_RL})</span>` : '',
           crowded ? `<span class="svc-unknown">${crowded} placed in a crowded spot: tidy them in your PDF editor</span>` : '',
           res.tilesFailed ? `<span class="svc-unknown">${res.tilesFailed} imagery tiles failed to load</span>` : '',

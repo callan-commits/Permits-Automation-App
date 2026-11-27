@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFString } from 'pdf-lib';
-import { calloutLines, calloutSpecs, countCrossings, countLeadersUnderBoxes, layoutCallouts, spreadInOrder, CALLOUT_FONT_SIZE } from '../src/print/callouts';
+import { calloutLines, calloutSpecs, countCrossings, countLeadersUnderBoxes, layoutCallouts, spreadInOrder, CALLOUT_FONT_SIZE, needsService } from '../src/print/callouts';
 import { buildPrintoutPdf } from '../src/print/pdf';
 import { calloutColour, rowsForPlan } from '../src/print/planRules';
 import { A3_LANDSCAPE_1_300, PT_PER_MM, extentOnSheet, frameFor, pixelToPage, printCentre, sheetAxes } from '../src/print/sheet';
@@ -61,14 +61,26 @@ const row = (over: Omit<Partial<ScheduleRow>, 'info'> & { info?: Partial<Schedul
   }) as unknown as ScheduleRow;
 
 describe('callout text', () => {
-  it('always leaves the service for the engineer, with the RL from the survey', () => {
-    expect(calloutLines(row({}), 0)).toEqual(['[insert service]', 'RL: ~32.088 QLB']);
-    expect(calloutLines(row({ info: { ql: 'A' }, rls: [{ text: '31.889', source: '3D line', at: [0, 0] }] }), 0)).toEqual(['[insert service]', 'RL: 31.889 QLA']);
-    // even a fully identified service says [insert service]: the engineer confirms it
-    expect(calloutLines(row({ info: { owner: 'Multinet Gas', type: 'Gas', description: '150 PE' } }), 0)[0]).toBe('[insert service]');
+  it('names the owner and asset type, then the RL from the survey', () => {
+    expect(calloutLines(row({}), 0)).toEqual(['VicTrack Comms', 'RL: ~32.088 QLB']);
+    expect(calloutLines(row({ info: { ql: 'A' }, rls: [{ text: '31.889', source: '3D line', at: [0, 0] }] }), 0)).toEqual(['VicTrack Comms', 'RL: 31.889 QLA']);
+    // the type isn't repeated when the owner's name already says it
+    expect(calloutLines(row({ info: { owner: 'Multinet Gas', type: 'Gas', description: '150 PE' } }), 0)[0]).toBe('Multinet Gas');
+    expect(calloutLines(row({ info: { owner: 'Melbourne Water', type: 'Water' } }), 0)[0]).toBe('Melbourne Water');
+    expect(calloutLines(row({ info: { owner: 'Melbourne Water', type: 'Drainage' } }), 0)[0]).toBe('Melbourne Water Drainage');
+    expect(calloutLines(row({ info: { owner: 'AusNet Electricity', type: 'Elec' } }), 0)[0]).toBe('AusNet Electricity');
+    expect(calloutLines(row({ info: { owner: 'Jemena', type: 'Elec' } }), 0)[0]).toBe('Jemena Elec');
+  });
+  it('says [insert service] when the owner is unknown, [insert type] when only the type is', () => {
+    expect(calloutLines(row({ info: { owner: null } }), 0)).toEqual(['[insert service]', 'RL: ~32.088 QLB']);
+    expect(calloutLines(row({ info: { owner: null, type: null } }), 0)[0]).toBe('[insert service]');
+    expect(calloutLines(row({ info: { type: null } }), 0)[0]).toBe('VicTrack [insert type]');
+    expect(needsService(row({}).info)).toBe(false);
+    expect(needsService(row({ info: { owner: null } }).info)).toBe(true);
+    expect(needsService(row({ info: { type: null } }).info)).toBe(true);
   });
   it('says [insert RL] where the survey has no level', () => {
-    expect(calloutLines(row({ info: { ql: null }, rls: [{ text: null, source: null, at: [0, 0] }] }), 0)).toEqual(['[insert service]', 'RL: [insert RL]']);
+    expect(calloutLines(row({ info: { ql: null }, rls: [{ text: null, source: null, at: [0, 0] }] }), 0)).toEqual(['VicTrack Comms', 'RL: [insert RL]']);
     expect(calloutLines(row({ rls: [{ text: null, source: null, at: [0, 0] }] }), 0)[1]).toBe('RL: [insert RL] QLB');
   });
   it('makes one callout per RL point, flags missing RLs, skips excluded rows', () => {
@@ -81,10 +93,10 @@ describe('callout text', () => {
       (g) => [g[0] * 10, g[1] * 10],
       () => '#ff0000',
     );
-    expect(specs.map((s) => [s.key, s.anchor, s.missingRl])).toEqual([
-      ['k#0', [10, 10], false],
-      ['k#1', [20, 20], true],
-      ['u#0', [0, 0], false],
+    expect(specs.map((s) => [s.key, s.anchor, s.missingRl, s.needsService, s.lines[0]])).toEqual([
+      ['k#0', [10, 10], false, false, 'VicTrack Comms'],
+      ['k#1', [20, 20], true, false, 'VicTrack Comms'],
+      ['u#0', [0, 0], false, true, '[insert service]'],
     ]);
     expect(specs[0].color).toEqual([1, 0, 0]);
   });
@@ -103,7 +115,7 @@ describe('callout layout (ring around the work area)', () => {
   const width = (t: string) => t.length * CALLOUT_FONT_SIZE * 0.5;
   const frame = { x: 0, y: 45, w: 1190, h: 796 };
   const area: XY[] = [[500, 350], [700, 350], [700, 500], [500, 500], [500, 350]];
-  const spec = (k: string, at: XY) => ({ key: k, lines: ['[insert service]', 'RL: ~45.100 QLB'], anchor: at, color: [1, 0, 0] as [number, number, number], missingRl: false });
+  const spec = (k: string, at: XY) => ({ key: k, lines: ['[insert service]', 'RL: ~45.100 QLB'], anchor: at, color: [1, 0, 0] as [number, number, number], missingRl: false, needsService: true });
   const noOverlaps = (placed: ReturnType<typeof layoutCallouts>) => {
     for (let i = 0; i < placed.length; i++) {
       for (let j = i + 1; j < placed.length; j++) {
@@ -216,8 +228,8 @@ describe('PDF', () => {
     const frame = frameFor(A3_LANDSCAPE_1_300);
     const callouts = layoutCallouts(
       [
-        { key: 'a#0', lines: ['[insert service]', 'RL: ~32.088 QLB'], anchor: [550, 400], color: [1, 0.5, 0], missingRl: false },
-        { key: 'b#0', lines: ['[insert service]', 'RL: [insert RL]'], anchor: [650, 450], color: [0, 0, 1], missingRl: true },
+        { key: 'a#0', lines: ['VicTrack Comms', 'RL: ~32.088 QLB'], anchor: [550, 400], color: [1, 0.5, 0], missingRl: false, needsService: false },
+        { key: 'b#0', lines: ['[insert service]', 'RL: [insert RL]'], anchor: [650, 450], color: [0, 0, 1], missingRl: true, needsService: true },
       ],
       { x: 0, y: frame.spec.pageH - frame.frameH, w: frame.frameW, h: frame.frameH },
       [[500, 350], [700, 350], [700, 500], [500, 500], [500, 350]],
@@ -272,13 +284,13 @@ describe('PDF', () => {
     expect(c.get(PDFName.of('IT'))!.toString()).toBe('/FreeTextCallout');
     expect((c.get(PDFName.of('CL')) as PDFArray).size()).toBe(6);
     expect(c.get(PDFName.of('LE'))!.toString()).toBe('/OpenArrow');
-    expect((c.get(PDFName.of('Contents')) as PDFHexString).decodeText()).toBe('[insert service]\rRL: ~32.088 QLB');
+    expect((c.get(PDFName.of('Contents')) as PDFHexString).decodeText()).toBe('VicTrack Comms\rRL: ~32.088 QLB');
     expect(c.get(PDFName.of('AP'))).toBeDefined();
-    // every callout is filled yellow
-    for (const d of [dicts[4], dicts[5]]) {
-      const fill = (d.get(PDFName.of('C')) as PDFArray).asArray().map((n) => (n as PDFNumber).asNumber());
-      expect(fill).toEqual([1, 0.94, 0.4]);
-    }
+    // a callout with its owner known is white; one still to complete is yellow
+    const fillOf = (d: PDFDict) => (d.get(PDFName.of('C')) as PDFArray).asArray().map((n) => (n as PDFNumber).asNumber());
+    expect(fillOf(dicts[4])).toEqual([1, 1, 1]);
+    expect(fillOf(dicts[5])).toEqual([1, 0.94, 0.4]);
+    expect((dicts[5].get(PDFName.of('Contents')) as PDFHexString).decodeText()).toBe('[insert service]\rRL: [insert RL]');
     // CL starts at the anchor (arrow tip)
     const cl = (c.get(PDFName.of('CL')) as PDFArray).asArray().map((n) => (n as PDFNumber).asNumber());
     expect([cl[0], cl[1]]).toEqual(callouts.find((x) => x.key === 'a#0')!.anchor);

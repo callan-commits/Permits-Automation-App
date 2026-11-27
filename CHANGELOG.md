@@ -10,6 +10,15 @@ The version shows at the bottom right of the app (hover over it for the build nu
 1. **Look at it:** on GitHub, pick `known-good/v0.5.0` in the branch list. **Code → Download ZIP** gets that exact version.
 2. **Put the live app back to it:** ask Claude to "revert to v0.5.0", or run `git revert` on the commits made since. This is done through a pull request, as usual, so nothing is lost and it can be undone.
 
+## v0.7.0 (27 Nov 2026)
+
+- **Callouts name the service:** each callout now reads "[owner] [asset type]", e.g. "VicTrack Comms", then the RL and QL as before.
+  - The type isn't repeated when the owner's name already includes it ("Multinet Gas", "Melbourne Water").
+  - Callouts with an owner are white.
+  - Services with no owner still say "[insert service]" and are highlighted yellow.
+  - Services with an owner but no type say "[owner] [insert type]", also yellow.
+- **Schedule entries reach the printout:** owner and type entered in the schedule against an S number are used on the callouts. The schedule and the print dialog now say so, and the print dialog counts how many callouts are still to complete.
+
 ## v0.6.0 (27 Nov 2026)
 
 - **12d surveys:** opens 12d Model files (.12daz, and plain .12da) as well as DWG and DXF.
