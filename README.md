@@ -6,6 +6,9 @@ An app intended to automate the civil engineering ground penetration permit proc
 
 **Open the app:** https://callan-commits.github.io/Permits-Automation-App/
 
+**Version:** shown at the bottom right of the app. See [CHANGELOG.md](CHANGELOG.md) for what each version contains and which are marked known good (✅). Each known-good version is kept on a `known-good/vX.Y.Z` branch.
+
+The live app asks search engines not to index it (`noindex`), even though the repository is public.
 ## Current status (prototype v0.1)
 
 Working:

@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Keep the app out of search engines (the repo is public, the app is internal). -->
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta name="googlebot" content="noindex, nofollow, noarchive" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"%3E%3Crect x="1" y="1" width="30" height="30" rx="8" fill="%23ffcc00"/%3E%3Crect x="9.5" y="10.5" width="13" height="11" rx="1.5" fill="none" stroke="%2315181d" stroke-width="2" stroke-dasharray="3.2 2.2"/%3E%3Cpath d="M4.5 23 L27.5 9" stroke="%2315181d" stroke-width="2.6" stroke-linecap="round"/%3E%3Ccircle cx="16" cy="16" r="2.6" fill="%2315181d" stroke="%23ffcc00" stroke-width="1.2"/%3E%3C/svg%3E" />
     <title>Calvillo – utility markup &amp; permits</title>
   </head>
@@ -81,6 +84,7 @@
       <span id="status-scale"></span>
       <span class="spacer"></span>
       <span class="muted">Files are processed in your browser and are not uploaded.</span>
+      <span id="status-version" class="version-badge"></span>
     </footer>
 
     <script type="module" src="/src/main.ts"></script>

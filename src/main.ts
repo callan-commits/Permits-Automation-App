@@ -24,6 +24,7 @@ import type { PlanKind } from './print/printout';
 import { ServicesDialog } from './ui/servicesDialog';
 import { renderBoxList, renderDrawingInfo, renderFeatureInfo, renderLayerList } from './ui/panels';
 import proj4 from 'proj4';
+import { APP_BUILT, APP_COMMIT, APP_VERSION } from './version';
 
 registerCrs();
 
@@ -101,6 +102,11 @@ function setBasemap(id: BasemapId) {
 setBasemap(basemapId);
 
 $('status-crs').textContent = 'MGA2020 Zone 55';
+{
+  const v = $('status-version');
+  v.textContent = `Calvillo v${APP_VERSION}`;
+  v.title = `Version ${APP_VERSION} · build ${APP_COMMIT} · ${APP_BUILT}`;
+}
 
 const basemapSelect = $<HTMLSelectElement>('basemap-select');
 basemapSelect.innerHTML = BASEMAPS.map((b) => `<option value="${b.id}">${b.label}</option>`).join('');
