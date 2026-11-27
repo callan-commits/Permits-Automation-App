@@ -1,6 +1,6 @@
 {
   "name": "permits-automation-app",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Automates ground penetration permit preparation on rail infrastructure jobs",
   "scripts": {
     "dev": "vite",

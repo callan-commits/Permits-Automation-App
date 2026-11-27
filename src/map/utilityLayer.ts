@@ -21,7 +21,7 @@ import VectorSource from 'ol/source/Vector';
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
 import type { FeatureLike } from 'ol/Feature';
 import type { Extent } from 'ol/extent';
-import { featureBBox, pointInPolygon, pointToFeatureDistance } from '../analysis/geometry';
+import { featureBBox, isClosedRing, pointInPolygon, pointToFeatureDistance } from '../analysis/geometry';
 import { type BBox, SpatialGrid } from '../analysis/spatialIndex';
 import type { CadDrawing, CadFeature, CadText, XY } from '../cad/types';
 
@@ -397,11 +397,6 @@ export class UtilityLayers {
   }
 }
 
-function isClosedRing(c: XY[]): boolean {
-  if (c.length < 4) return false;
-  const [a, b] = [c[0], c[c.length - 1]];
-  return Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6;
-}
 
 function withAlpha(hex: string, alpha: number): string {
   const n = parseInt(hex.slice(1), 16);

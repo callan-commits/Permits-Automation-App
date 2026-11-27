@@ -11,6 +11,8 @@ export interface RowEdit {
   rl?: string;
   /** Left out of the schedule, callouts and permits. */
   excluded?: boolean;
+  /** For a service joined from several pieces: schedule the pieces separately instead. */
+  split?: boolean;
 }
 
 export interface ScheduleRow {
@@ -24,6 +26,15 @@ export interface ScheduleRow {
   excluded: boolean;
   /** What still needs the user's input. */
   needs: { type: boolean; owner: boolean; rl: boolean };
+  /**
+   * The one point the printout calls out (index into rls): the shallowest crossing, i.e. the highest
+   * known RL; the first point if no RL is known.
+   */
+  calloutIndex: number;
+  /** A service joined from several pieces: how many (shown so the join can be checked or split). */
+  joinedPieces: number;
+  /** A piece of a joined service that was split apart: the joined service's key, to re-join it. */
+  splitFrom: string | null;
 }
 
 /** Edits to schedule rows, remembered per drawing in the browser. */
@@ -77,7 +88,12 @@ export function scheduleRows(
   ring: XY[],
   radius = SCHEDULE_RADIUS,
 ): ScheduleRow[] {
-  const entries = engine.compute(ring, radius, (run) => register.isService(run.layer));
+  const entries = engine.compute(
+    ring,
+    radius,
+    (run) => register.isService(run.layer),
+    (key) => Boolean(edits.get(key).split),
+  );
   let n = 0;
   return entries.map((entry) => {
     const edit = edits.get(entry.run.key);
@@ -94,8 +110,22 @@ export function scheduleRows(
       rls,
       excluded,
       needs: { type: !info.type, owner: !info.owner, rl: rls.some((r) => r.text === null) },
+      calloutIndex: shallowest(rls),
+      joinedPieces: entry.run.pieces?.length ?? 1,
+      splitFrom: entry.run.parentKey ?? null,
     };
   });
+}
+
+/** Index of the highest known RL (the shallowest point), or 0 if none is known. */
+export function shallowest(rls: { text: string | null }[]): number {
+  let best = 0;
+  let bestValue = -Infinity;
+  rls.forEach((r, i) => {
+    const v = r.text === null ? NaN : parseFloat(r.text.replace(/[^0-9.\-]/g, ''));
+    if (Number.isFinite(v) && v > bestValue) [best, bestValue] = [i, v];
+  });
+  return best;
 }
 
 /** RLs as one editable string: "~32.311, ~32.256"; "?" marks a missing one; empty if none are known. */
