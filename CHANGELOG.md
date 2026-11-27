@@ -3,12 +3,12 @@
 The version shows at the bottom right of the app (hover over it for the build number and date).
 
 - **Numbering:** versions are numbered `MAJOR.MINOR.PATCH`. While Calvillo is a prototype, MAJOR stays 0: MINOR goes up for a tranche of new features, PATCH for fixes only.
-- **Known good:** a version marked ✅ has been tested end to end and is safe to go back to. Each has a git tag and a GitHub Release of the same name.
+- **Known good:** a version marked ✅ has been tested end to end and is safe to go back to. Each is kept on its own branch, named `known-good/vX.Y.Z`, which is never changed or deleted.
 
 ## Going back to a known-good version
 
-1. **Look at it:** on GitHub, open **Releases** (or **Tags**), choose the version, then **Browse files**. **Source code (zip)** downloads that exact version.
-2. **Put the live app back to it:** run `git revert` on the commits made since the tag, or ask Claude to "revert to v0.5.0". This is done through a pull request, as usual, so nothing is lost and it can be undone.
+1. **Look at it:** on GitHub, pick `known-good/v0.5.0` in the branch list. **Code → Download ZIP** gets that exact version.
+2. **Put the live app back to it:** ask Claude to "revert to v0.5.0", or run `git revert` on the commits made since. This is done through a pull request, as usual, so nothing is lost and it can be undone.
 
 ## ✅ v0.5.0 (27 Nov 2026), known good
 
