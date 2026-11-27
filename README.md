@@ -13,7 +13,11 @@ The live app asks search engines not to index it (`noindex`), even though the re
 
 Working:
 
-- **Open utility survey drawings**: `.dwg` (via [LibreDWG](https://www.gnu.org/software/libredwg/) compiled to WebAssembly) and ASCII `.dxf`. Open from the toolbar or drag onto the map.
+- **Open utility surveys**: `.dwg` (via [LibreDWG](https://www.gnu.org/software/libredwg/) compiled to WebAssembly), ASCII `.dxf`, and 12d Model `.12daz` / `.12da`. Open from the toolbar or drag onto the map.
+  - **12d files:**
+    - Each 12d model becomes a layer, and each string's attributes become its object data. Owner, service type and QL are read from `OWNER` / `TYPE` / `QUALITY_LEVEL`, or VicTrack's `VT_UTL_OWNER` etc.
+    - Lines keep their 3D levels, and arcs, circles and single-point strings are drawn. A positive 12d radius is a clockwise arc.
+    - Per-vertex survey attributes are skipped, so even very large exports open quickly. They're streamed: unzipped and decoded in the background, a piece at a time.
 - **Display over aerial imagery**: the map runs in MGA2020 Zone 55 (EPSG:7855), the only grid the app uses; there is no grid selector. Free imagery (Esri World Imagery) or OpenStreetMap is reprojected to fit. Drawing coordinates are never altered.
 - **Layers panel**: colours follow the CAD layer colours, with toggles, a filter and a feature count. Layers that are off or frozen in the drawing start hidden.
 - **CAD objects drawn**: lines, polylines (including arcs and bulges, and 3D polylines with levels), arcs, circles, ellipses, splines, points, text/MTEXT, block inserts with attributes (nested), hatches, solids and dimensions.
@@ -74,7 +78,7 @@ npm install
 npm run dev        # then open http://localhost:5173
 ```
 
-Open a DWG or DXF with **Open DWG / DXF** or drag it onto the map. A synthetic test survey (invented geometry near Caulfield) is kept in `tests/data/` for the automated tests; it is not published with the app.
+Open a DWG, DXF or 12d file (.12daz / .12da) with **Open survey**, or drag it onto the map. A synthetic test survey (invented geometry near Caulfield) is kept in `tests/data/` for the automated tests; it is not published with the app.
 
 Other commands:
 
@@ -91,7 +95,8 @@ To run the tests against your own DWG files, put them in `tests/fixtures/`. That
 ```
 src/
   cad/
-    worker.ts      Web Worker: LibreDWG (WASM) reads DWG/DXF off the main thread
+    worker.ts      Web Worker: LibreDWG (WASM) reads DWG/DXF off the main thread; 12d files go to twelveD.ts
+    twelveD.ts     12d ASCII reader (.12da / .12daz): streamed unzip + UTF-16/UTF-8 decode, line parser
     convert.ts     CAD entities -> simple lines/polygons/points/text in drawing coordinates
     aci.ts         AutoCAD colour index -> hex
     loader.ts      Main-thread wrapper around the worker

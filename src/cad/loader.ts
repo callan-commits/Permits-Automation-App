@@ -20,7 +20,7 @@ function getWorker(): Worker {
     else p.reject(new Error(ev.data.error));
   };
   worker.onerror = (ev) => {
-    for (const p of pending.values()) p.reject(new Error(ev.message || 'DWG parser crashed'));
+    for (const p of pending.values()) p.reject(new Error(ev.message || 'File reader crashed'));
     pending.clear();
     worker?.terminate();
     worker = null; // a fresh worker is created for the next file
@@ -28,7 +28,7 @@ function getWorker(): Worker {
   return worker;
 }
 
-/** Parse a DWG or DXF file in a background worker. `onProgress` receives stage descriptions. */
+/** Parse a DWG, DXF or 12d (.12da/.12daz) file in a background worker. `onProgress` receives stage descriptions. */
 export function loadCadFile(fileName: string, buffer: ArrayBuffer, onProgress?: (stage: string) => void): Promise<CadDrawing> {
   const id = nextId++;
   return new Promise((resolve, reject) => {

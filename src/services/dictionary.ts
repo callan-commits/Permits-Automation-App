@@ -15,6 +15,7 @@ export interface OwnerEntry {
 export const OWNERS: OwnerEntry[] = [
   { name: 'Metro Trains Melbourne', aliases: ['MTM', 'METRO', 'METRO TRAINS', 'METRO TRAINS MELBOURNE'] },
   { name: 'VicTrack', aliases: ['VICTRACK', 'VIC TRACK', 'VT'] },
+  { name: 'ARTC', aliases: ['ARTC', 'AUSTRALIAN RAIL TRACK CORPORATION', 'AUSTRALIAN RAIL TRACK CORP'] },
   { name: 'V/Line', aliases: ['VLINE', 'V/LINE', 'V LINE'] },
   { name: 'Telstra', aliases: ['TELSTRA', 'TLS'], impliesType: 'Comms' },
   { name: 'NBN Co', aliases: ['NBN', 'NBNCO', 'NBN CO'], impliesType: 'Comms' },
@@ -34,6 +35,8 @@ export const OWNERS: OwnerEntry[] = [
   { name: 'Greater Western Water', aliases: ['GWW', 'GREATER WESTERN WATER', 'CWW', 'CITY WEST WATER', 'WW', 'WESTERN WATER'] },
   { name: 'Melbourne Water', aliases: ['MW', 'MELBOURNE WATER', 'MELB WATER'] },
   { name: 'Council', aliases: ['COUNCIL', 'LGA'] },
+  { name: 'Mobil', aliases: ['MOBIL', 'EXXONMOBIL', 'EXXONMOBILE', 'EXXON MOBIL', 'EXXON MOBILE', 'MOBIL REFINING'], impliesType: 'Fuel' },
+  { name: 'FibreconX', aliases: ['FIBRECONX', 'FIBRECON X'], impliesType: 'Comms' },
   { name: 'Department of Transport and Planning', aliases: ['DTP', 'VICROADS', 'DOT'] },
 ];
 

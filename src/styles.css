@@ -72,6 +72,7 @@ select { max-width: 175px; }
 .layer-list li label:hover { background: var(--panel-2); }
 .swatch { width: 14px; height: 4px; border-radius: 2px; flex: none; outline: 1px solid rgba(0, 0, 0, 0.5); }
 .layer-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer-path { color: var(--muted); font-size: 11px; margin-left: 4px; }
 .layer-n { color: var(--muted); font-size: 11px; }
 
 .box-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 8px; }

@@ -1,0 +1,179 @@
+null null
+
+// ------------------------------------------------------------------------
+// Synthetic 12d ASCII test file for Calvillo. Invented geometry and data near
+// Caulfield (MGA2020 Zone 55); it does not represent real assets.
+// ------------------------------------------------------------------------
+
+// null -999
+// output_null_attributes true
+
+model "ABU Asbuilt Utility/Elec/UT Elec UG QL A"
+string super {
+  name      "ABU-UT-Elec-UG-QL A"
+  chainage  0
+  breakline line
+  colour    red
+  style     "1"
+  weight    0.13
+
+  attributes {
+    text    "string_no"   "1"
+    group {
+      name "SPA_Utilities"
+      attributes {
+        text    "TYPE"   "Electricity"
+        text    "OWNER"   "Jemena"
+        text    "QUALITY_LEVEL"   "QL-A"
+        text    "POSITION"   "Obvert"
+        real    "DIA_EXT_M"   0.063
+        text    "HORZ_DATUM"   "MGA2020 Z55"
+      }
+    }
+    group {
+      name "Import"
+      attributes {
+        text    "OWNER"   ""
+        text    "File Name"   "synthetic \"test\" file"
+      }
+    }
+    text    "IfcGlobalId"   "0000000000000000000001"
+  }
+  closed 0
+  data_3d {
+    327830 5805975 30.0
+    327860 5805975 31.0
+  }
+  pipe_value {
+    diameter  0.063
+  }
+  justify top
+  point_data {
+    "P1" "P2"
+  }
+  vertex_attribute_data {
+    attributes {
+      group {
+        name "SDR Setup Details"
+        attributes {
+          text    "OWNER"   "Should be ignored"
+          real    "is_hi"   null
+        }
+      }
+    }
+    attributes {
+      group {
+        name "SDR Setup Details"
+        attributes {
+          text    "OWNER"   "Should be ignored"
+        }
+      }
+    }
+  }
+  image_data {
+    image {
+        data ".\\CAM0001.tmp.bmp"      }
+  }
+}
+
+model "EFU Existing Utility/VIDA/Comms/UT Comms UG QL B"
+string super {
+  name      "EFU-UT-Comms-UG-QL B"
+  colour    "sui communications"
+  attributes {
+    group {
+      name "Utilities"
+      attributes {
+        text    "VT_UTL_TYPE"   "Communications"
+        text    "VT_UTL_OWNER"   "Telstra"
+        text    "VT_UTL_QUALITY_LEVEL"   "QL-B"
+      }
+    }
+  }
+  closed 0
+  data_3d {
+    327840 5805960 29.5
+    327840 5805990 null
+  }
+}
+
+model "EFU Existing Utility/Abandoned/Drain/UT Drain Inv QL B"
+string super {
+  name      "EFU-UT-Drain-Inv-QL B"
+  colour    "acad 112"
+  attributes {
+    group {
+      name "SPA_Utilities"
+      attributes {
+        text    "TYPE"   "Drainage"
+        text    "OWNER"   "Unknown"
+        text    "STATUS"   "Abandoned"
+      }
+    }
+  }
+  closed 0
+  z 28.25
+  data_2d {
+    327845 5805960
+    327845 5805990
+  }
+}
+
+model "ABU Asbuilt Utility/Elec/UT Elec Pit"
+string super {
+  name      "ABU-UT-Elec-Pit"
+  colour    purple
+  attributes {
+    group {
+      name "SPA_Utilities"
+      attributes {
+        text    "TYPE"   "Electricity"
+        text    "OWNER"   "Victrack"
+      }
+    }
+  }
+  closed 1
+  data_3d {
+    327870 5805970 31.2
+    327870 5805971 31.2
+    327871 5805971 31.2
+    327871 5805970 31.2
+  }
+  radius_data {
+    0 0 0.6 0
+  }
+  major_data {
+    f f f f
+  }
+}
+string circle {
+  name      "ABU-UT-Elec-Pit-Round"
+  colour    "acad 034"
+  attributes {
+    group {
+      name "SPA_Utilities"
+      attributes {
+        text    "OWNER"   "MTM"
+      }
+    }
+  }
+  radius    -0.25
+  xcentre   327880   ycentre   5805980   zcentre   31.5
+}
+string super {
+  name      "ABU-UT-Elec-Locator"
+  colour    "shade 32"
+  attributes {
+    group {
+      name "SPA_Utilities"
+      attributes {
+        text    "TYPE"   "Electricity"
+        text    "OWNER"   "NA"
+      }
+    }
+  }
+  closed 0
+  data_3d {
+    327885 5805985 31.75
+  }
+}

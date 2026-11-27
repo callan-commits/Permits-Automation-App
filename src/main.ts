@@ -254,7 +254,7 @@ mapWrap.addEventListener('drop', async (e) => {
   $('drop-overlay').hidden = true;
   const file = e.dataTransfer?.files?.[0];
   if (!file) return;
-  if (!/\.(dwg|dxf)$/i.test(file.name)) return toast('Please drop a .dwg or .dxf file', true);
+  if (!/\.(dwg|dxf|12daz?)$/i.test(file.name)) return toast('Please drop a .dwg, .dxf or .12daz file', true);
   await openFile(file.name, await file.arrayBuffer());
 });
 
