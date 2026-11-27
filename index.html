@@ -20,6 +20,10 @@
         Open survey
         <input id="file-input" type="file" accept=".dwg,.dxf,.12daz,.12da" hidden />
       </label>
+      <label class="btn" title="Open a feature survey (DWG/DXF with levels across the site): callouts then show the surface and the service's depth">
+        Open feature survey
+        <input id="feature-input" type="file" accept=".dwg,.dxf,.12daz,.12da" hidden />
+      </label>
       <span class="sep"></span>
       <button id="draw-rect" class="btn tool" title="Click two opposite corners (or click-drag) to draw a box square to the screen">▭ Box</button>
       <button id="draw-rotated" class="btn tool" title="Click two points along one edge, then a third to set the width">⟋ Rotated box</button>
@@ -37,6 +41,11 @@
         <section id="drawing-panel" class="panel">
           <h2>Drawing</h2>
           <div id="drawing-info" class="muted">No drawing loaded. Open a DWG/DXF or drop one on the map.</div>
+        </section>
+
+        <section id="feature-panel" class="panel">
+          <h2>Feature survey</h2>
+          <div id="feature-info" class="muted">None loaded. Open a feature survey (a DWG with levels across the site) to show the surface and depth on each callout.</div>
         </section>
 
         <section class="panel grow">

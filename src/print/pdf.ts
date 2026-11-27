@@ -229,7 +229,7 @@ export async function buildPrintoutPdf(input: PrintoutInput): Promise<Uint8Array
 
 function calloutAnnot(ctx: PDFDocument['context'], c: PlacedCallout, font: PDFFont, fontRef: PDFRef, now: string) {
   const { box } = c;
-  const fill = c.needsService ? FILL_CALLOUT : FILL_CALLOUT_DONE;
+  const fill = c.needsService || c.needsSurface ? FILL_CALLOUT : FILL_CALLOUT_DONE;
   // Rect covers the box, the leader and the arrow head.
   const xs = [box.x, box.x + box.w, c.anchor[0], c.knee[0], c.attach[0]];
   const ys = [box.y, box.y + box.h, c.anchor[1], c.knee[1], c.attach[1]];

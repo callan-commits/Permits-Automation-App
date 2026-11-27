@@ -49,6 +49,18 @@ Working:
   - Map markers (S1, S2…) show where each RL applies, with a dashed line showing the gap for services that don't cross. While a schedule is open, the markers are for that box.
   - **The schedule opens in a floating panel**, so the map stays usable alongside it. The map shifts so the box isn't hidden behind the panel. Drag the panel by its title bar and resize it from the bottom-right corner; it reopens where you left it. **⧉ Pop out** moves it into its own browser window (e.g. on a second screen). Edits and **Show on map** clicks there update the app, and **Back to app** docks it again. The browser must allow pop-ups for the site.
   - Layers can be marked **not a service** in the Services table (survey points, fences, contours…).
+- **Depths** (**Open feature survey**):
+  - **What it reads:** a feature survey DWG/DXF (or 12d) with levels across the site. Levels come from 3D points, spot-height blocks (RL/LEVEL attribute or insertion level) and 3D string vertices. Level text is used only if there are hardly any 3D levels.
+  - **Layers:** layers named like inverts, pipes, cables, overhead wires or roofs are left out by default. Every layer can be ticked or unticked in the **Feature survey** panel.
+  - **Surface at a callout point:**
+    1. a surveyed level within 0.30 m;
+    2. otherwise linear interpolation on the TIN, if the triangle's 3 points are all within 5 m;
+    3. otherwise an inverse-distance-weighted average of the nearest ≤6 levels within 5 m, if there are at least 3;
+    4. otherwise flagged "[find manually]".
+  - **Depth** = surface − RL. Callouts read owner/type, RL, Surface and Depth, and go at the crossing with the smallest depth.
+  - **By hand:** a surface can be typed into the schedule.
+  - **Map:** levels show when zoomed in.
+  - Logic in `src/analysis/surface.ts`; test data from `scripts/make_feature_survey_dxf.py`.
 - **Permits** (**Permit rules** in the toolbar): the permit cheat sheet is built into the app (`src/permits/builtInRules.ts`); there is no spreadsheet import. Rules can be edited in the app, kept in that browser only, with **Reset to built-in rules**. To change a rule for everyone, edit `builtInRules.ts`.
   - A permit is required when a box is within the trigger distance (horizontally, inclusive) of any asset of that owner. Crossing or inside counts as 0 m.
   - Every service counts, including overhead ones.

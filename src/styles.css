@@ -195,3 +195,14 @@ select { max-width: 175px; }
 .pk-result { margin: 10px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .pk-result .muted { flex-basis: 100%; }
 .pk-status { margin-top: 8px; }
+
+/* Feature survey panel */
+#feature-info .feature-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+#feature-info .feature-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#feature-info .fs-show { display: block; margin: 6px 0 2px; }
+#feature-info details { margin-top: 4px; }
+#feature-info summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.fs-layers { list-style: none; margin: 4px 0 0; padding: 0; max-height: 160px; overflow: auto; font-size: 12px; }
+.fs-layers li { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 1px 0; }
+.fs-layers label { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; }
+.tag-warn { font-size: 10px; color: #ffcc00; border: 1px solid #ffcc00; border-radius: 6px; padding: 0 4px; white-space: nowrap; }

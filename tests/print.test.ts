@@ -89,7 +89,7 @@ describe('callout text', () => {
         row({ rls: [{ text: '~1.000', source: '3D line', at: [1, 1] }, { text: '~1.500', source: '3D line', at: [2, 2] }], calloutIndex: 1 }),
         row({ key: 'n', rls: [{ text: null, source: null, at: [3, 3] }] }),
         row({ key: 'x', excluded: true }),
-        row({ key: 'u', needs: { type: false, owner: true, rl: false }, info: { owner: null } }),
+        row({ key: 'u', needs: { type: false, owner: true, rl: false, surface: false }, info: { owner: null } }),
       ],
       (g) => [g[0] * 10, g[1] * 10],
       () => '#ff0000',

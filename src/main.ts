@@ -13,6 +13,9 @@ import { UtilityLayers } from './map/utilityLayer';
 import { boxDimensions } from './analysis/geometry';
 import { ScheduleEngine } from './analysis/schedule';
 import { ScheduleLayer } from './map/scheduleLayer';
+import { LevelsLayer } from './map/levelsLayer';
+import { type LevelLayer, type SurfaceLevel, SurfaceModel, extractLevels } from './analysis/surface';
+import { renderFeaturePanel } from './ui/featurePanel';
 import { ServiceRegister } from './services/register';
 import { ScheduleEdits, type ScheduleRow, scheduleRows } from './services/scheduleModel';
 import { ScheduleDialog } from './ui/scheduleDialog';
@@ -225,6 +228,7 @@ function showDrawing(d: CadDrawing) {
   renderDrawingInfo($('drawing-info'), d, warning);
   $('layer-count').textContent = String(d.layers.length);
   refreshLayers();
+  if (feature) renderFeature();
   inspected = null;
   renderFeatureInfo($('feature-info'), null);
   updateServiceNotice();
@@ -236,6 +240,121 @@ $<HTMLInputElement>('file-input').addEventListener('change', async (e) => {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
   if (file) await openFile(file.name, await file.arrayBuffer());
+  input.value = '';
+});
+
+// ---- feature survey (ground levels, for depths) ----
+interface FeatureSurvey {
+  name: string;
+  levels: SurfaceLevel[];
+  layers: LevelLayer[];
+  included: Set<string>;
+  model: SurfaceModel;
+  extent: [number, number, number, number] | null;
+  showOnMap: boolean;
+}
+let feature: FeatureSurvey | null = null;
+const levelsLayer = new LevelsLayer(map);
+const featureLayersKey = (name: string) => `calvillo.featureLayers.${name}`;
+
+function rebuildSurface() {
+  if (!feature) return;
+  const used = feature.levels.filter((l) => feature!.included.has(l.layer));
+  feature.model = new SurfaceModel(used);
+  levelsLayer.setLevels(feature.model.levels);
+  try {
+    localStorage.setItem(featureLayersKey(feature.name), JSON.stringify([...feature.included]));
+  } catch {
+    /* ignore */
+  }
+}
+
+function renderFeature() {
+  const overlaps = (() => {
+    const a = feature?.extent;
+    const b = drawing?.focusExtent;
+    if (!a || !b) return null;
+    return a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+  })();
+  renderFeaturePanel(
+    $('feature-info'),
+    feature && {
+      name: feature.name,
+      used: feature.model.size,
+      total: feature.levels.length,
+      layers: feature.layers,
+      included: feature.included,
+      showOnMap: feature.showOnMap,
+      overlapsUtilities: overlaps,
+    },
+    {
+      toggleLayer: (layer, include) => {
+        if (!feature) return;
+        if (include) feature.included.add(layer);
+        else feature.included.delete(layer);
+        rebuildSurface();
+        renderFeature();
+        renderBoxes();
+      },
+      showOnMap: (on) => {
+        if (!feature) return;
+        feature.showOnMap = on;
+        levelsLayer.setVisible(on);
+      },
+      remove: () => {
+        feature = null;
+        levelsLayer.setLevels([]);
+        renderFeature();
+        renderBoxes();
+        toast('Feature survey removed: callouts show the RL only.');
+      },
+    },
+  );
+}
+
+async function openFeatureSurvey(name: string, buffer: ArrayBuffer) {
+  busy(`Reading feature survey ${name}…`);
+  try {
+    const d = await loadCadFile(name, buffer, (stage) => busy(stage));
+    busy('Building the surface…');
+    await new Promise((r) => setTimeout(r, 0));
+    const { levels, layers } = extractLevels(d);
+    if (!levels.length) {
+      toast(`${name} has no levels (no 3D points, spot heights, 3D lines or level text), so depths can't be worked out from it.`, true);
+      return;
+    }
+    let saved: string[] | null = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(featureLayersKey(name)) ?? 'null');
+    } catch {
+      /* ignore */
+    }
+    const included = new Set(saved ?? layers.filter((l) => !l.notGround).map((l) => l.layer));
+    let ext: [number, number, number, number] | null = null;
+    for (const l of levels) ext = ext ? [Math.min(ext[0], l.x), Math.min(ext[1], l.y), Math.max(ext[2], l.x), Math.max(ext[3], l.y)] : [l.x, l.y, l.x, l.y];
+    feature = { name, levels, layers, included, model: new SurfaceModel([]), extent: ext, showOnMap: true };
+    rebuildSurface();
+    levelsLayer.setVisible(true);
+    renderFeature();
+    renderBoxes();
+    const left = layers.filter((l) => !included.has(l.layer)).length;
+    toast(
+      `Feature survey ${name}: ${feature.model.size.toLocaleString()} levels from ${(layers.length - left).toLocaleString()} layers` +
+        (left ? ` (${left} layer${left === 1 ? '' : 's'} left out: not ground)` : '') +
+        '. Callouts now show the surface and depth.',
+    );
+  } catch (err) {
+    console.error(err);
+    toast((err as Error).message, true);
+  } finally {
+    busy(null);
+  }
+}
+
+$<HTMLInputElement>('feature-input').addEventListener('change', async (e) => {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (file) await openFeatureSurvey(file.name, await file.arrayBuffer());
   input.value = '';
 });
 
@@ -287,7 +406,7 @@ $<HTMLInputElement>('labels-toggle').addEventListener('change', (e) => utilities
 // ---- boxes panel ----
 // ---- schedules ----
 function rowsForRing(ring: [number, number][]): ScheduleRow[] | null {
-  return engine ? scheduleRows(engine, register, edits, ring) : null;
+  return engine ? scheduleRows(engine, register, edits, ring, undefined, feature?.model ?? null) : null;
 }
 function permitsForRing(ring: [number, number][]) {
   return engine && rules.all().length ? checkPermits(engine, register, edits, ring, rules.all()) : null;
@@ -317,6 +436,7 @@ const printDialog = new PrintDialog(
       rotation: map.getView().getRotation(),
       basemap: basemapId,
       sourceName: drawing?.fileName ?? 'drawing',
+      surfaceName: rows.some((r) => r.rls.some((p) => p.surface)) ? (feature?.name ?? 'entered by hand') : null,
       onStage: stage,
     }),
 );
@@ -443,4 +563,4 @@ map.on('moveend', () => {
 });
 
 // Expose for debugging / automated tests.
-(window as unknown as Record<string, unknown>).__app = { map, boxes, utilities, register, rules, rowsForRing, getDrawing: () => drawing, openFile, renderBoxes };
+(window as unknown as Record<string, unknown>).__app = { map, boxes, utilities, register, rules, edits, rowsForRing, getDrawing: () => drawing, getFeature: () => feature, openFile, openFeatureSurvey, renderBoxes };

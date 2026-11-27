@@ -10,6 +10,30 @@ The version shows at the bottom right of the app (hover over it for the build nu
 1. **Look at it:** on GitHub, pick `known-good/v0.5.0` in the branch list. **Code → Download ZIP** gets that exact version.
 2. **Put the live app back to it:** ask Claude to "revert to v0.5.0", or run `git revert` on the commits made since. This is done through a pull request, as usual, so nothing is lost and it can be undone.
 
+## v0.9.0 (27 Nov 2026)
+
+- **Depths from a feature survey:** **Open feature survey** loads a DWG/DXF (or 12d file) with levels across the site. Each callout then reads, for example:
+
+  ```
+  Jemena Elec
+  RL: ~34.564 QLB
+  Surface: 35.566
+  Depth: 1.002
+  ```
+
+- **Levels used:** 3D points, spot-height blocks (from an RL/LEVEL attribute or the insertion level), and the vertices of 3D strings (kerbs, edges). Level text ("RL 35.566") is only used when a drawing has hardly any 3D levels.
+- **Layers left out:** layers whose names say they aren't ground (inverts, pipes, cables, overhead wires, roofs) are left out by default. The **Feature survey** panel lists every layer with levels, so any layer can be ticked or unticked.
+- **Surface at a callout point:**
+  1. a surveyed level within **30 cm**, used directly;
+  2. otherwise, interpolated on the survey's triangulated surface (TIN), if the triangle's three points are all within **5 m**;
+  3. otherwise (e.g. at the edge of the survey), a distance-weighted average of the nearest 6 levels within 5 m, if there are at least 3;
+  4. otherwise **Surface: [find manually]**, highlighted yellow.
+- **Depth:** surface − RL. A negative depth (service above the surface) is flagged. Overhead services get no depth.
+- **Callout position:** the callout goes at the crossing with the smallest depth.
+- **Schedule:** shows the surface, how it was found, and the depth. A surface can be typed in by hand, e.g. where the survey has none; this also works without a feature survey.
+- **Map:** shows the survey's levels when zoomed in.
+- **Printout:** the print dialog says whether depths are included and counts surfaces to find manually. The printout footer names the feature survey.
+
 ## v0.8.0 (27 Nov 2026)
 
 - **One service, one row:** surveys often break a cable or pipe into pieces that meet end to end. These pieces are now joined into one service when the survey loads.
