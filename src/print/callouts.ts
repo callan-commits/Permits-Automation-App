@@ -23,6 +23,8 @@ export interface CalloutSpec {
   missingRl: boolean;
   /** Owner or asset type unknown: the callout says [insert service] / [insert type] and is highlighted. */
   needsService: boolean;
+  /** Surface not found (or a negative depth): the callout is highlighted. */
+  needsSurface?: boolean;
 }
 
 export interface Rect {
@@ -48,6 +50,8 @@ export const CALLOUT_PAD = 4;
 export const INSERT_SERVICE = '[insert service]';
 export const INSERT_RL = '[insert RL]';
 export const INSERT_TYPE = '[insert type]';
+export const FIND_SURFACE = '[find manually]';
+export const INSERT_DEPTH = '[insert depth]';
 
 /**
  * First callout line: "[owner] [asset type]", e.g. "VicTrack Comms", from the survey or from what was
@@ -71,8 +75,21 @@ const KNEE = 12;
 /** Callout text lines for one RL point of a schedule row. */
 export function calloutLines(row: ScheduleRow, pointIndex: number): string[] {
   const ql = row.info.ql ? ` QL${row.info.ql}` : '';
-  const rl = row.rls[pointIndex]?.text ?? null;
-  return [serviceLine(row.info), `RL: ${rl ?? INSERT_RL}${ql}`];
+  const p = row.rls[pointIndex];
+  const rl = p?.text ?? null;
+  const lines = [serviceLine(row.info), `RL: ${rl ?? INSERT_RL}${ql}`];
+  // With a feature survey (or a surface entered by hand): the ground level there and the depth.
+  if (p?.surface) {
+    lines.push(`Surface: ${p.surface.value === null ? FIND_SURFACE : p.surface.value.toFixed(3)}`);
+    lines.push(`Depth: ${p.depth === null || p.depth === undefined ? INSERT_DEPTH : p.depth.toFixed(3)}`);
+  }
+  return lines;
+}
+
+/** True when the called-out point's surface wasn't found, or the depth is negative (check the levels). */
+export function needsSurface(row: ScheduleRow, pointIndex: number): boolean {
+  const p = row.rls[pointIndex];
+  return Boolean(p?.surface && (p.surface.value === null || (p.depth ?? 0) < 0));
 }
 
 /** Callouts for the rows (one per service, at its shallowest crossing), anchors converted to page points. */
@@ -92,6 +109,7 @@ export function calloutSpecs(rows: ScheduleRow[], toPage: (ground: XY) => XY, co
       color,
       missingRl: p.text === null,
       needsService: needsService(row.info),
+      needsSurface: needsSurface(row, idx),
     });
   }
   return out;

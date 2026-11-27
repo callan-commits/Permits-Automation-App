@@ -1,4 +1,5 @@
 /** Schedule rows for a work area: geometry (ScheduleEngine) + service info (register) + user edits. */
+import type { SurfaceModel, SurfaceResult } from '../analysis/surface';
 import type { RlSource, ScheduleEngine, ScheduleEntry } from '../analysis/schedule';
 import { SCHEDULE_RADIUS, formatRl } from '../analysis/schedule';
 import type { XY } from '../cad/types';
@@ -13,6 +14,18 @@ export interface RowEdit {
   excluded?: boolean;
   /** For a service joined from several pieces: schedule the pieces separately instead. */
   split?: boolean;
+  /** Ground surface entered by hand for the called-out point (e.g. where the survey has none). */
+  surface?: string;
+}
+
+export interface RowPoint {
+  text: string | null;
+  source: RlSource | 'edit' | null;
+  at: XY;
+  /** Ground surface at the point: undefined when depths aren't being worked out (no feature survey). */
+  surface?: { value: number | null; method: SurfaceResult['method'] | 'edit'; detail: string };
+  /** Depth of the service below the surface, m (surface − RL); null if either is unknown. */
+  depth?: number | null;
 }
 
 export interface ScheduleRow {
@@ -21,14 +34,17 @@ export interface ScheduleRow {
   key: string;
   entry: ScheduleEntry;
   info: ServiceInfo;
-  /** RL text per point (formatted, with "~" when approximate) or null where unknown. */
-  rls: { text: string | null; source: RlSource | 'edit' | null; at: XY }[];
+  /**
+   * Per point: RL text (formatted, with "~" when approximate) or null where unknown; and, when a feature
+   * survey is loaded (or a surface was entered), the ground surface there and the depth (surface − RL).
+   */
+  rls: RowPoint[];
   excluded: boolean;
   /** What still needs the user's input. */
-  needs: { type: boolean; owner: boolean; rl: boolean };
+  needs: { type: boolean; owner: boolean; rl: boolean; surface: boolean };
   /**
-   * The one point the printout calls out (index into rls): the shallowest crossing, i.e. the highest
-   * known RL; the first point if no RL is known.
+   * The one point the printout calls out (index into rls): the shallowest crossing, i.e. the smallest
+   * known depth (or, without depths, the highest known RL); the first point if neither is known.
    */
   calloutIndex: number;
   /** A service joined from several pieces: how many (shown so the join can be checked or split). */
@@ -87,6 +103,8 @@ export function scheduleRows(
   edits: ScheduleEdits,
   ring: XY[],
   radius = SCHEDULE_RADIUS,
+  /** The feature survey's surface, when one is loaded: gives surface levels and depths. */
+  surface: SurfaceModel | null = null,
 ): ScheduleRow[] {
   const entries = engine.compute(
     ring,
@@ -98,10 +116,27 @@ export function scheduleRows(
   return entries.map((entry) => {
     const edit = edits.get(entry.run.key);
     const info = register.resolve(entry.run.primary, { type: edit.type, owner: edit.owner });
-    const rls = edit.rl
+    const rls: RowPoint[] = edit.rl
       ? [{ text: edit.rl, source: 'edit' as const, at: entry.points[0].at }]
       : entry.points.map((p) => ({ text: p.rl ? formatRl(p.rl.value, info.ql) : null, source: p.rl?.source ?? null, at: p.at }));
     const excluded = Boolean(edit.excluded);
+    // Depths: underground services only (an overhead wire's level is above the ground).
+    const manual = edit.surface !== undefined && Number.isFinite(parseFloat(edit.surface)) ? parseFloat(edit.surface) : null;
+    if (!info.overhead && (surface || manual !== null)) {
+      for (const p of rls) {
+        const s = surface ? surface.at(p.at) : { value: null, method: 'none' as const, detail: 'No feature survey loaded' };
+        p.surface = { value: s.value, method: s.method, detail: s.detail };
+        p.depth = depthOf(p);
+      }
+    }
+    let calloutIndex = shallowest(rls);
+    if (manual !== null && rls[calloutIndex]) {
+      const p = rls[calloutIndex];
+      p.surface = { value: manual, method: 'edit', detail: 'Entered by hand' };
+      p.depth = depthOf(p);
+      calloutIndex = shallowest(rls);
+    }
+    const called = rls[calloutIndex];
     return {
       id: excluded ? '–' : `S${++n}`,
       key: entry.run.key,
@@ -109,20 +144,40 @@ export function scheduleRows(
       info,
       rls,
       excluded,
-      needs: { type: !info.type, owner: !info.owner, rl: rls.some((r) => r.text === null) },
-      calloutIndex: shallowest(rls),
+      needs: {
+        type: !info.type,
+        owner: !info.owner,
+        rl: rls.some((r) => r.text === null),
+        surface: Boolean(called?.surface && (called.surface.value === null || (called.depth ?? 0) < 0)),
+      },
+      calloutIndex,
       joinedPieces: entry.run.pieces?.length ?? 1,
       splitFrom: entry.run.parentKey ?? null,
     };
   });
 }
 
-/** Index of the highest known RL (the shallowest point), or 0 if none is known. */
-export function shallowest(rls: { text: string | null }[]): number {
+/** Numeric value of an RL text ("~32.088" → 32.088), or NaN. */
+export function rlValue(text: string | null): number {
+  return text === null ? NaN : parseFloat(text.replace(/[^0-9.\-]/g, ''));
+}
+
+function depthOf(p: RowPoint): number | null {
+  const rl = rlValue(p.text);
+  return p.surface?.value != null && Number.isFinite(rl) ? p.surface.value - rl : null;
+}
+
+/**
+ * Index of the shallowest point: the smallest known depth; without depths, the highest known RL;
+ * 0 if neither is known.
+ */
+export function shallowest(rls: { text: string | null; depth?: number | null }[]): number {
+  const withDepth = rls.map((r, i) => [r.depth, i] as const).filter(([d]) => typeof d === 'number' && Number.isFinite(d));
+  if (withDepth.length) return withDepth.reduce((a, b) => (b[0]! < a[0]! ? b : a))[1];
   let best = 0;
   let bestValue = -Infinity;
   rls.forEach((r, i) => {
-    const v = r.text === null ? NaN : parseFloat(r.text.replace(/[^0-9.\-]/g, ''));
+    const v = rlValue(r.text);
     if (Number.isFinite(v) && v > bestValue) [best, bestValue] = [i, v];
   });
   return best;

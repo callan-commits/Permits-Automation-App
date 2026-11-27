@@ -20,6 +20,8 @@ export interface CadMeta {
   lineType?: string;
   /** Elevation (Z / RL) of a flat object, point or block insertion point. */
   elevation?: number;
+  /** For objects drawn from a block: where the block was inserted (map coordinates). */
+  insertAt?: XY;
   /** Handle of the block insert the data came from, when it was inherited. */
   insertHandle?: string;
 }

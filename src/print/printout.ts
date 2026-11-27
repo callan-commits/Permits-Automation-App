@@ -44,6 +44,8 @@ export async function makePrintout(opts: {
   rotation: number;
   basemap: BasemapId;
   sourceName: string;
+  /** Where surface levels came from (the feature survey's file name), when callouts give depths. */
+  surfaceName?: string | null;
   onStage?: (s: string) => void;
 }): Promise<PrintoutResult> {
   const frame = frameFor(A3_LANDSCAPE_1_300);
@@ -95,7 +97,7 @@ export async function makePrintout(opts: {
     workAreaName: opts.box.name,
     north: [n1[0] - n0[0], n1[1] - n0[1]],
     title: `${opts.kind === 'overheads' ? 'OVERHEAD SERVICES' : 'SERVICES'} – ${opts.box.name}`,
-    subtitle: `${opts.sourceName} · services within 10 m · RL at crossing or closest point`,
+    subtitle: `${opts.sourceName} · services within 10 m · RL at crossing or closest point${opts.surfaceName ? ` · surface: ${opts.surfaceName}` : ''}`,
     datum: opts.datum,
     printedAt: new Date(),
   });

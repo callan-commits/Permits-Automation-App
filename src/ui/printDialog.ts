@@ -31,8 +31,16 @@ export class PrintDialog {
     const pts = (rs: ScheduleRow[]) => rs.filter((r) => r.rls.length).length;
     const noRl = (rs: ScheduleRow[]) => rs.filter((r) => r.rls.length && !r.rls[Math.min(r.calloutIndex, r.rls.length - 1)].text).length;
     const toDo = (rs: ScheduleRow[]) => rs.filter((r) => !r.excluded && r.rls.length && needsService(r.info)).length;
+    const noSurface = (rs: ScheduleRow[]) => rs.filter((r) => !r.excluded && r.needs.surface).length;
     const notes = (rs: ScheduleRow[]) =>
-      [toDo(rs) ? `${toDo(rs)} to complete (yellow)` : '', noRl(rs) ? `${noRl(rs)} without an RL` : ''].filter(Boolean).join(', ');
+      [
+        toDo(rs) ? `${toDo(rs)} to complete (yellow)` : '',
+        noRl(rs) ? `${noRl(rs)} without an RL` : '',
+        noSurface(rs) ? `${noSurface(rs)} surface${noSurface(rs) === 1 ? '' : 's'} to find manually` : '',
+      ]
+        .filter(Boolean)
+        .join(', ');
+    const depths = rows.some((r) => r.rls.some((p) => p.surface));
     const fit = fitsOnSheet(box.ring, this.rotation());
     const deg = Math.round(((this.rotation() * 180) / Math.PI) * 10) / 10;
     this.dialog.innerHTML = `
@@ -45,6 +53,11 @@ export class PrintDialog {
         Services with no owner say <b>${INSERT_SERVICE}</b> and are highlighted yellow for you to complete.
         To fill them in first, open the box's <b>Schedule</b> and enter the owner against each S number.
         The page is calibrated, so PDF measuring tools read metres.</p>
+        ${
+          depths
+            ? '<p class="muted">Callouts also give the <b>surface</b> (from the feature survey) and the <b>depth</b> (surface − RL) at the called-out point. Where no surface was found it says <b>[find manually]</b> and the callout is highlighted yellow.</p>'
+            : '<p class="muted">No feature survey loaded: callouts give the RL only. Use <b>Open feature survey</b> to add the surface and depth.</p>'
+        }
         ${fit.fits ? '' : `<p class="svc-unknown">⚠ The box (${fit.boxW.toFixed(1)} × ${fit.boxH.toFixed(1)} m on the sheet) is bigger than one A3 sheet at 1:300 (${fit.sheetW.toFixed(0)} × ${fit.sheetH.toFixed(0)} m). Parts of it will be cut off. Try rotating the map (Align to box) or splitting the box.</p>`}
         <label class="check"><input type="checkbox" class="pk-services" checked /> <b>Services plan</b>: ${svc.length} service${svc.length === 1 ? '' : 's'}, ${pts(svc)} callout${pts(svc) === 1 ? '' : 's'}${notes(svc) ? ` <span class="svc-unknown">(${notes(svc)})</span>` : ''}</label>
         <label class="check"><input type="checkbox" class="pk-overheads" ${oh.length ? 'checked' : 'disabled'} /> <b>Overheads plan</b>: ${
@@ -76,7 +89,7 @@ export class PrintDialog {
         this.urls.push(url);
         const crowded = res.callouts.filter((c) => c.crowded).length;
         const noRl = res.callouts.filter((c) => c.missingRl).length;
-        const toComplete = res.callouts.filter((c) => c.needsService).length;
+        const toComplete = res.callouts.filter((c) => c.needsService || c.needsSurface).length;
         const notes = [
           `${res.callouts.length} callout${res.callouts.length === 1 ? '' : 's'}`,
           toComplete ? `<span class="svc-unknown">${toComplete} to complete (highlighted yellow)</span>` : '',

@@ -235,12 +235,13 @@ export class ScheduleDialog {
       Untick <i>Include</i> to leave a service off the plan. Click a row's ID to show it on the map.
       Pieces of one service that meet end to end are joined into one row (same layer, owner, type and QL); use <i>Split</i> if a join is wrong.
       Each service gets one callout on the printout, at its shallowest crossing.
+      With a feature survey loaded, the callout also gives the ground surface there and the depth (surface − RL); the shallowest crossing is then the one with the smallest depth. Where no surface is found, enter it by hand.
       The owner and type you enter here are used on the printout callouts (e.g. “VicTrack Comms”); services left without an owner print as “[insert service]”, highlighted yellow.
       ${needing ? `<br><b class="svc-unknown">${needing} service${needing === 1 ? '' : 's'} need${needing === 1 ? 's' : ''} input.</b>` : ''}</p>
       ${this.permits(permits, ruleCount, rows)}${
         rows.length
           ? `<table class="svc-table sched-table">
-          <thead><tr><th>ID</th><th>Service type</th><th>Owner</th><th>QL</th><th>Details / layer</th><th>Where</th><th class="num">Distance</th><th>RL</th><th>Include</th></tr></thead>
+          <thead><tr><th>ID</th><th>Service type</th><th>Owner</th><th>QL</th><th>Details / layer</th><th>Where</th><th class="num">Distance</th><th>RL</th><th>Surface / depth</th><th>Include</th></tr></thead>
           <tbody>${rows.map((r) => this.row(r)).join('')}</tbody></table>`
           : '<p class="muted">No services within this distance of the box.</p>'
       }</div>
@@ -272,6 +273,11 @@ export class ScheduleDialog {
         this.edits.set(key, { excluded: !(e.target as HTMLInputElement).checked }),
       );
       tr.querySelector<HTMLButtonElement>('.sch-show')!.addEventListener('click', () => this.onShowRow(row));
+      tr.querySelector<HTMLInputElement>('.sch-surface')?.addEventListener('change', (e) => {
+        const v = (e.target as HTMLInputElement).value.trim();
+        this.edits.set(key, { surface: v && Number.isFinite(parseFloat(v)) ? String(parseFloat(v)) : undefined });
+      });
+      tr.querySelector('.sch-surface-clear')?.addEventListener('click', () => this.edits.set(key, { surface: undefined }));
       tr.querySelector('.sch-split')?.addEventListener('click', () => this.edits.set(key, { split: true }));
       tr.querySelector('.sch-rejoin')?.addEventListener('click', () => row.splitFrom && this.edits.set(row.splitFrom, { split: undefined }));
     }
@@ -295,6 +301,25 @@ export class ScheduleDialog {
       )
       .join('')}</tbody></table></details>`;
     return `<div class="permit-section"><h3>Permits</h3>${required}${table}</div>`;
+  }
+
+  /** Surface and depth at the called-out point, with how the surface was found; the surface can be typed in. */
+  private surfaceCell(r: ScheduleRow): string {
+    if (r.info.overhead) return '<td><span class="muted">– (overhead)</span></td>';
+    const p = r.rls[r.calloutIndex];
+    const s = p?.surface;
+    if (!s) {
+      return `<td><input class="sch-surface" value="" placeholder="Enter, or load a feature survey" /><div class="src">No feature survey loaded</div></td>`;
+    }
+    const value = s.value === null ? '' : s.value.toFixed(3);
+    const depth =
+      p.depth === null || p.depth === undefined
+        ? 'Depth: needs the surface and RL'
+        : p.depth < 0
+          ? `<b class="svc-unknown">Depth: ${p.depth.toFixed(3)} (service above the surface: check)</b>`
+          : `<b>Depth: ${p.depth.toFixed(3)}</b>`;
+    return `<td class="${r.needs.surface && !r.excluded ? 'needs-input' : ''}"><input class="sch-surface" value="${esc(value)}" placeholder="Not found: enter" title="Ground surface at the called-out point" />
+      <div class="src">${depth}<br>${esc(s.detail)}${s.method === 'edit' ? ' <button type="button" class="btn small sch-surface-clear" title="Go back to the feature survey">Clear</button>' : ''}</div></td>`;
   }
 
   private row(r: ScheduleRow): string {
@@ -322,6 +347,7 @@ export class ScheduleDialog {
       <td class="${rlMissing ? 'needs-input' : ''}"><input class="sch-rl" value="${esc(rl)}" placeholder="No RL found: enter" /><div class="src">${esc(rlSrc)}${
         r.rls.length > 1 && r.rls[r.calloutIndex]?.text ? `<br>Printout: ${esc(r.rls[r.calloutIndex].text!)} (shallowest)` : ''
       }</div></td>
+      ${this.surfaceCell(r)}
       <td class="oh-cell"><input type="checkbox" class="sch-use" ${r.excluded ? '' : 'checked'} /></td>
     </tr>`;
   }

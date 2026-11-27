@@ -225,6 +225,7 @@ function mergeMeta(outer?: CadMeta, inner?: CadMeta): CadMeta | undefined {
   }
   merged.elevation = inner.elevation ?? outer.elevation;
   merged.insertHandle = outer.insertHandle ?? inner.insertHandle;
+  if (outer.insertAt || inner.insertAt) merged.insertAt = outer.insertAt ?? inner.insertAt;
   return merged;
 }
 
@@ -372,7 +373,7 @@ export function convertDatabase(db: DwgDatabase, fileName: string): CadDrawing {
         for (let n = 2; tag in attributes; n++) tag = `${at.tag || at.attrTag}_${n}`;
         attributes[tag] = cleanText(at.text?.text ?? '');
       }
-      const own: CadMeta = { ...ownMeta(e), insertHandle: e.handle };
+      const own: CadMeta = { ...ownMeta(e), insertHandle: e.handle, insertAt: apply(ctx.m, e.insertionPoint.x, e.insertionPoint.y) };
       if (Object.keys(attributes).length) own.attributes = attributes;
       meta = mergeMeta(ctx.meta, own);
     } else meta = mergeMeta(ctx.meta, ownMeta(e));
